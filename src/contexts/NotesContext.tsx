@@ -19,6 +19,8 @@ export interface Note {
   source?: string;
   location?: { latitude: number; longitude: number };
   mediaUrl?: string;
+  connections?: string[]; // IDs of explicitly connected notes
+  mentions?: string[]; // IDs of mentioned notes
 }
 
 interface NotesContextType {
@@ -30,6 +32,11 @@ interface NotesContextType {
   tags: Tag[];
   addTag: (tag: Omit<Tag, 'id'>) => string;
   deleteTag: (id: string) => void;
+  connectNotes: (sourceId: string, targetId: string) => void;
+  disconnectNotes: (sourceId: string, targetId: string) => void;
+  findBacklinks: (noteId: string) => Note[];
+  getSuggestedConnections: (noteId: string) => Note[];
+  parseNoteContent: (content: string) => { parsedContent: React.ReactNode, mentionedNoteIds: string[] };
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
@@ -88,11 +95,17 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date();
+    
+    // Parse content for mentions
+    const { mentionedNoteIds } = parseNoteContent(note.content);
+    
     const newNote: Note = {
       ...note,
       id: uuidv4(),
       createdAt: now,
       updatedAt: now,
+      connections: [],
+      mentions: mentionedNoteIds,
     };
     setNotes((prevNotes) => [newNote, ...prevNotes]);
     return newNote.id;
@@ -100,16 +113,39 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateNote = (id: string, noteUpdate: Partial<Note>) => {
     setNotes((prevNotes) =>
-      prevNotes.map((note) =>
-        note.id === id
-          ? { ...note, ...noteUpdate, updatedAt: new Date() }
-          : note
-      )
+      prevNotes.map((note) => {
+        if (note.id === id) {
+          // If content is being updated, re-parse for mentions
+          let updatedMentions = note.mentions || [];
+          if (noteUpdate.content) {
+            const { mentionedNoteIds } = parseNoteContent(noteUpdate.content);
+            updatedMentions = mentionedNoteIds;
+          }
+          
+          return { 
+            ...note, 
+            ...noteUpdate, 
+            mentions: updatedMentions,
+            updatedAt: new Date() 
+          };
+        }
+        return note;
+      })
     );
   };
 
   const deleteNote = (id: string) => {
+    // Remove the note
     setNotes((prevNotes) => prevNotes.filter((note) => note.id !== id));
+    
+    // Remove any connections to this note
+    setNotes((prevNotes) => 
+      prevNotes.map((note) => ({
+        ...note,
+        connections: note.connections?.filter(connId => connId !== id) || [],
+        mentions: note.mentions?.filter(mentionId => mentionId !== id) || []
+      }))
+    );
   };
 
   const getNoteById = (id: string) => {
@@ -135,6 +171,133 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  // Connection layer methods
+  const connectNotes = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return; // Can't connect a note to itself
+
+    setNotes((prevNotes) =>
+      prevNotes.map((note) => {
+        if (note.id === sourceId) {
+          const connections = note.connections || [];
+          if (!connections.includes(targetId)) {
+            return {
+              ...note,
+              connections: [...connections, targetId],
+              updatedAt: new Date(),
+            };
+          }
+        }
+        return note;
+      })
+    );
+  };
+
+  const disconnectNotes = (sourceId: string, targetId: string) => {
+    setNotes((prevNotes) =>
+      prevNotes.map((note) => {
+        if (note.id === sourceId) {
+          return {
+            ...note,
+            connections: (note.connections || []).filter(id => id !== targetId),
+            updatedAt: new Date(),
+          };
+        }
+        return note;
+      })
+    );
+  };
+
+  const findBacklinks = (noteId: string): Note[] => {
+    return notes.filter(note => 
+      (note.connections && note.connections.includes(noteId)) || 
+      (note.mentions && note.mentions.includes(noteId))
+    );
+  };
+
+  // Simple content similarity for suggested connections
+  const getSuggestedConnections = (noteId: string): Note[] => {
+    const currentNote = getNoteById(noteId);
+    if (!currentNote) return [];
+
+    // Simple content-based similarity
+    const noteWords = currentNote.content.toLowerCase().split(/\s+/);
+    const titleWords = currentNote.title.toLowerCase().split(/\s+/);
+    const allWords = [...noteWords, ...titleWords];
+    
+    // Skip very common words
+    const commonWords = new Set(['the', 'and', 'of', 'to', 'a', 'in', 'that', 'is', 'was', 'for', 'on', 'with', 'as']);
+    const significantWords = allWords.filter(word => word.length > 2 && !commonWords.has(word));
+    
+    // Find other notes with similar content
+    return notes
+      .filter(note => note.id !== noteId) // Don't suggest the current note
+      .map(note => {
+        // Calculate a simple similarity score
+        const noteText = (note.title + ' ' + note.content).toLowerCase();
+        const matchScore = significantWords.reduce((score, word) => {
+          return score + (noteText.includes(word) ? 1 : 0);
+        }, 0) / significantWords.length;
+        
+        return { note, score: matchScore };
+      })
+      .filter(item => item.score > 0.2) // Only keep notes with some similarity
+      .sort((a, b) => b.score - a.score) // Sort by similarity (highest first)
+      .slice(0, 5) // Take top 5 suggestions
+      .map(item => item.note);
+  };
+
+  // Parse note content for wiki-style links [[Note Title]]
+  const parseNoteContent = (content: string): { parsedContent: React.ReactNode, mentionedNoteIds: string[] } => {
+    if (!content) return { parsedContent: '', mentionedNoteIds: [] };
+    
+    const mentionedNoteIds: string[] = [];
+    const segments: React.ReactNode[] = [];
+    
+    // Look for [[Note Title]] patterns
+    const regex = /\[\[(.*?)\]\]/g;
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = regex.exec(content)) !== null) {
+      const mentionTitle = match[1].trim();
+      const matchStart = match.index;
+      const matchEnd = regex.lastIndex;
+      
+      // Add text before the match
+      if (matchStart > lastIndex) {
+        segments.push(content.substring(lastIndex, matchStart));
+      }
+      
+      // Find the mentioned note
+      const mentionedNote = notes.find(n => n.title.toLowerCase() === mentionTitle.toLowerCase());
+      
+      if (mentionedNote) {
+        // Add the linked note
+        mentionedNoteIds.push(mentionedNote.id);
+        segments.push(
+          <span key={`mention-${segments.length}`} className="text-primary font-medium cursor-pointer hover:underline">
+            {mentionTitle}
+          </span>
+        );
+      } else {
+        // If no matching note found, just show as regular text
+        segments.push(`[[${mentionTitle}]]`);
+      }
+      
+      lastIndex = matchEnd;
+    }
+    
+    // Add the remaining text
+    if (lastIndex < content.length) {
+      segments.push(content.substring(lastIndex));
+    }
+    
+    return {
+      parsedContent: segments.length > 0 ? segments : content,
+      mentionedNoteIds
+    };
+  };
+
   return (
     <NotesContext.Provider
       value={{
@@ -146,6 +309,11 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         tags,
         addTag,
         deleteTag,
+        connectNotes,
+        disconnectNotes,
+        findBacklinks,
+        getSuggestedConnections,
+        parseNoteContent
       }}
     >
       {children}

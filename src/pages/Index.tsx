@@ -1,15 +1,16 @@
 
-import React, { useState } from 'react';
-import AppLayout from '@/components/AppLayout';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import QuickCaptureButton from '@/components/QuickCaptureButton';
 import CaptureDialog from '@/components/CaptureDialog';
 import NotesList from '@/components/NotesList';
 import NoteView from '@/components/NoteView';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Brain, Search } from 'lucide-react';
+import { Brain, Search, Network } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const [captureDialogOpen, setCaptureDialogOpen] = useState(false);
@@ -19,8 +20,23 @@ const Index = () => {
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { notes, deleteNote } = useNotes();
+  const { notes, deleteNote, getNoteById } = useNotes();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Load note from URL parameter if present
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const noteId = params.get('noteId');
+    
+    if (noteId) {
+      const note = getNoteById(noteId);
+      if (note) {
+        setSelectedNote(note);
+      }
+    }
+  }, [location.search, getNoteById]);
 
   const filteredNotes = searchTerm
     ? notes.filter(note => 
@@ -50,6 +66,18 @@ const Index = () => {
     setDeleteDialogOpen(true);
   };
 
+  const handleNoteSelected = (note: Note) => {
+    setSelectedNote(note);
+    // Update URL with note ID for shareable links
+    navigate(`/?noteId=${note.id}`, { replace: true });
+  };
+
+  const handleBackFromNote = () => {
+    setSelectedNote(null);
+    // Remove note ID from URL
+    navigate('/', { replace: true });
+  };
+
   // Handle keyboard shortcut for quick capture
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -67,7 +95,7 @@ const Index = () => {
   }, []);
 
   return (
-    <AppLayout>
+    <>
       <div className="mb-8 flex flex-col items-center justify-center text-center">
         <div className="mb-4 flex items-center justify-center gap-2">
           <Brain className="h-8 w-8 text-primary" />
@@ -78,20 +106,30 @@ const Index = () => {
         </p>
       </div>
 
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input 
-          placeholder="Search your notes..." 
-          className="pl-10"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      <div className="relative mb-6 flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search your notes..." 
+            className="pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2"
+          onClick={() => navigate('/graph')}
+        >
+          <Network className="h-4 w-4" /> 
+          <span className="hidden sm:inline">Knowledge Graph</span>
+        </Button>
       </div>
 
       {selectedNote ? (
         <NoteView 
           note={selectedNote}
-          onBack={() => setSelectedNote(null)}
+          onBack={handleBackFromNote}
           onEdit={(note) => {
             setIsEditingNote(true);
             setCaptureDialogOpen(true);
@@ -99,7 +137,7 @@ const Index = () => {
           onDelete={handleOpenDeleteDialog}
         />
       ) : (
-        <NotesList onNoteClick={setSelectedNote} />
+        <NotesList onNoteClick={handleNoteSelected} />
       )}
 
       <QuickCaptureButton onCaptureClick={() => setCaptureDialogOpen(true)} />
@@ -123,7 +161,7 @@ const Index = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AppLayout>
+    </>
   );
 };
 
