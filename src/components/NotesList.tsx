@@ -7,10 +7,12 @@ import { FileText, Image, Link, Mic } from 'lucide-react';
 
 interface NotesListProps {
   onNoteClick?: (note: Note) => void;
+  notes?: Note[]; // Optional notes array for filtered views
 }
 
-const NotesList: React.FC<NotesListProps> = ({ onNoteClick }) => {
-  const { notes } = useNotes();
+const NotesList: React.FC<NotesListProps> = ({ onNoteClick, notes: propNotes }) => {
+  const { notes: contextNotes } = useNotes();
+  const notes = propNotes || contextNotes;
 
   if (notes.length === 0) {
     return (

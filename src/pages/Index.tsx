@@ -4,13 +4,16 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import QuickCaptureButton from '@/components/QuickCaptureButton';
 import CaptureDialog from '@/components/CaptureDialog';
 import NotesList from '@/components/NotesList';
+import Collections from '@/components/Collections';
+import TagManager from '@/components/TagManager';
 import NoteView from '@/components/NoteView';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Brain, Search, Network } from 'lucide-react';
+import { Brain, Search, Network, Tag, ListFilter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
   const [captureDialogOpen, setCaptureDialogOpen] = useState(false);
@@ -19,6 +22,7 @@ const Index = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
 
   const { notes, deleteNote, getNoteById } = useNotes();
   const { toast } = useToast();
@@ -116,14 +120,17 @@ const Index = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2"
-          onClick={() => navigate('/graph')}
-        >
-          <Network className="h-4 w-4" /> 
-          <span className="hidden sm:inline">Knowledge Graph</span>
-        </Button>
+        <div className="flex gap-2">
+          <TagManager />
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={() => navigate('/graph')}
+          >
+            <Network className="h-4 w-4" /> 
+            <span className="hidden sm:inline">Knowledge Graph</span>
+          </Button>
+        </div>
       </div>
 
       {selectedNote ? (
@@ -137,7 +144,26 @@ const Index = () => {
           onDelete={handleOpenDeleteDialog}
         />
       ) : (
-        <NotesList onNoteClick={handleNoteSelected} />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="all" className="flex items-center gap-2">
+              <ListFilter className="h-4 w-4" />
+              <span>All Notes</span>
+            </TabsTrigger>
+            <TabsTrigger value="collections" className="flex items-center gap-2">
+              <Tag className="h-4 w-4" />
+              <span>Collections</span>
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="all" className="mt-0">
+            <NotesList notes={filteredNotes} onNoteClick={handleNoteSelected} />
+          </TabsContent>
+          
+          <TabsContent value="collections" className="mt-0">
+            <Collections onNoteClick={handleNoteSelected} />
+          </TabsContent>
+        </Tabs>
       )}
 
       <QuickCaptureButton onCaptureClick={() => setCaptureDialogOpen(true)} />

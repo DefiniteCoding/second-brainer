@@ -4,10 +4,14 @@ import { Note, useNotes } from '@/contexts/NotesContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash, Link, Network, Brain } from 'lucide-react';
+import { ArrowLeft, Edit, Trash, Link, Network, Brain, Bold, Italic, Highlight } from 'lucide-react';
 import RelatedNotes from './RelatedNotes';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  ToggleGroup, 
+  ToggleGroupItem 
+} from "@/components/ui/toggle-group";
 
 interface NoteViewProps {
   note: Note;
@@ -17,8 +21,9 @@ interface NoteViewProps {
 }
 
 const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) => {
-  const { parseNoteContent, getSuggestedConnections, findBacklinks } = useNotes();
+  const { parseNoteContent, getSuggestedConnections, findBacklinks, updateNote } = useNotes();
   const [showConnections, setShowConnections] = useState(false);
+  const [progressiveMode, setProgressiveMode] = useState<string | null>(null);
   
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleString();
@@ -27,6 +32,85 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
   const { parsedContent } = parseNoteContent(note.content);
   const backlinks = findBacklinks(note.id);
   const suggestedConnections = getSuggestedConnections(note.id);
+
+  // Progressive summarization handlers
+  const handleBoldSelection = () => {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      const selectedText = selection.toString();
+      const updatedContent = note.content.replace(
+        selectedText, 
+        `**${selectedText}**`
+      );
+      updateNote(note.id, { content: updatedContent });
+    }
+  };
+
+  const handleItalicSelection = () => {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      const selectedText = selection.toString();
+      const updatedContent = note.content.replace(
+        selectedText, 
+        `_${selectedText}_`
+      );
+      updateNote(note.id, { content: updatedContent });
+    }
+  };
+
+  const handleHighlightSelection = () => {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      const selectedText = selection.toString();
+      const updatedContent = note.content.replace(
+        selectedText, 
+        `==${selectedText}==`
+      );
+      updateNote(note.id, { content: updatedContent });
+    }
+  };
+
+  // Process content for progressive summarization rendering
+  const renderProcessedContent = () => {
+    let content = note.content;
+    
+    // Process bold text
+    content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Process italic text
+    content = content.replace(/_(.*?)_/g, '<em>$1</em>');
+    
+    // Process highlight text
+    content = content.replace(/==(.*?)==/g, '<mark>$1</mark>');
+
+    // Filter content based on progressive mode
+    if (progressiveMode === 'level1') {
+      // Only show bold text
+      const boldMatches = note.content.match(/\*\*(.*?)\*\*/g) || [];
+      if (boldMatches.length > 0) {
+        content = boldMatches.map(match => match.replace(/\*\*(.*?)\*\*/g, '$1')).join('\n\n');
+        content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      } else {
+        content = 'No highlighted main points in this note.';
+      }
+    } else if (progressiveMode === 'level2') {
+      // Show bold and highlighted text
+      const matches = [
+        ...(note.content.match(/\*\*(.*?)\*\*/g) || []),
+        ...(note.content.match(/==(.*?)==/g) || [])
+      ];
+      if (matches.length > 0) {
+        content = matches.map(match => 
+          match.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+               .replace(/==(.*?)==/g, '<mark>$1</mark>')
+        ).join('\n\n');
+      } else {
+        content = 'No highlighted content in this note.';
+      }
+    }
+
+    return <div dangerouslySetInnerHTML={{ __html: content }} />;
+  };
 
   const renderContent = () => {
     switch (note.contentType) {
@@ -38,7 +122,9 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
                 <img src={note.mediaUrl} alt="Note media" className="max-h-80 rounded-md" />
               </div>
             )}
-            <div className="whitespace-pre-wrap">{parsedContent}</div>
+            <div className="whitespace-pre-wrap">
+              {progressiveMode ? renderProcessedContent() : parsedContent}
+            </div>
           </div>
         );
       case 'link':
@@ -54,11 +140,17 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
                 {note.mediaUrl}
               </a>
             )}
-            <div className="whitespace-pre-wrap">{parsedContent}</div>
+            <div className="whitespace-pre-wrap">
+              {progressiveMode ? renderProcessedContent() : parsedContent}
+            </div>
           </div>
         );
       default:
-        return <div className="whitespace-pre-wrap">{parsedContent}</div>;
+        return (
+          <div className="whitespace-pre-wrap">
+            {progressiveMode ? renderProcessedContent() : parsedContent}
+          </div>
+        );
     }
   };
 
@@ -112,6 +204,49 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <span className="text-sm font-medium">Progressive Summary:</span>
+            <ToggleGroup type="single" value={progressiveMode || ''} onValueChange={setProgressiveMode}>
+              <ToggleGroupItem value="" aria-label="Full Text">Full</ToggleGroupItem>
+              <ToggleGroupItem value="level1" aria-label="Main Points">
+                Main Points
+              </ToggleGroupItem>
+              <ToggleGroupItem value="level2" aria-label="Key Ideas">
+                Key Ideas
+              </ToggleGroupItem>
+            </ToggleGroup>
+            
+            <div className="flex-1 flex justify-end gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={handleBoldSelection}
+                title="Bold important points"
+              >
+                <Bold className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={handleItalicSelection}
+                title="Italicize supporting details"
+              >
+                <Italic className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={handleHighlightSelection}
+                title="Highlight key insights"
+              >
+                <Highlight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
           {renderContent()}
           
           {backlinks.length > 0 && (
