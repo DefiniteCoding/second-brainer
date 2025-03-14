@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { saveNotesToLocalStorage, loadNotesFromLocalStorage, downloadNotesAsMarkdown, metadataDB } from '@/utils/markdownStorage';
 
 export interface Tag {
   id: string;
@@ -48,6 +49,8 @@ interface NotesContextType {
   parseNaturalLanguageQuery: (query: string) => SearchFilter;
   getRecentlyViewedNotes: () => Note[];
   addToRecentViews: (noteId: string) => void;
+  exportNotes: () => void;
+  importNotes: (files: FileList) => Promise<void>;
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
@@ -67,24 +70,14 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [notes, setNotes] = useState<Note[]>([]);
   const [tags, setTags] = useState<Tag[]>(DEFAULT_TAGS);
   const [recentViews, setRecentViews] = useState<string[]>([]);
+  const [dbInitialized, setDbInitialized] = useState(false);
 
   useEffect(() => {
-    const savedNotes = localStorage.getItem(STORAGE_KEY);
-    if (savedNotes) {
-      try {
-        const parsedNotes = JSON.parse(savedNotes);
-        // Convert string dates back to Date objects
-        const notesWithDateObjects = parsedNotes.map((note: any) => ({
-          ...note,
-          createdAt: new Date(note.createdAt),
-          updatedAt: new Date(note.updatedAt),
-        }));
-        setNotes(notesWithDateObjects);
-      } catch (error) {
-        console.error('Failed to parse notes from localStorage:', error);
-      }
-    }
+    metadataDB.init();
+    setDbInitialized(true);
+  }, []);
 
+  useEffect(() => {
     const savedTags = localStorage.getItem(TAGS_STORAGE_KEY);
     if (savedTags) {
       try {
@@ -97,6 +90,9 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTags(DEFAULT_TAGS);
     }
     
+    const loadedNotes = loadNotesFromLocalStorage(tags);
+    setNotes(loadedNotes);
+    
     const savedRecentViews = localStorage.getItem(RECENT_VIEWS_KEY);
     if (savedRecentViews) {
       try {
@@ -108,9 +104,15 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-  }, [notes]);
-
+    if (notes.length > 0) {
+      saveNotesToLocalStorage(notes, tags);
+      
+      if (dbInitialized) {
+        metadataDB.storeMetadata(notes);
+      }
+    }
+  }, [notes, tags, dbInitialized]);
+  
   useEffect(() => {
     localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(tags));
   }, [tags]);
@@ -122,7 +124,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date();
     
-    // Parse content for mentions
     const { mentionedNoteIds } = parseNoteContent(note.content);
     
     const newNote: Note = {
@@ -141,7 +142,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setNotes((prevNotes) =>
       prevNotes.map((note) => {
         if (note.id === id) {
-          // If content is being updated, re-parse for mentions
           let updatedMentions = note.mentions || [];
           if (noteUpdate.content) {
             const { mentionedNoteIds } = parseNoteContent(noteUpdate.content);
@@ -161,10 +161,8 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteNote = (id: string) => {
-    // Remove the note
     setNotes((prevNotes) => prevNotes.filter((note) => note.id !== id));
     
-    // Remove any connections to this note
     setNotes((prevNotes) => 
       prevNotes.map((note) => ({
         ...note,
@@ -187,7 +185,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteTag = (id: string) => {
     setTags((prevTags) => prevTags.filter((tag) => tag.id !== id));
     
-    // Also remove the tag from any notes that have it
     setNotes((prevNotes) =>
       prevNotes.map((note) => ({
         ...note,
@@ -198,7 +195,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const connectNotes = (sourceId: string, targetId: string) => {
-    if (sourceId === targetId) return; // Can't connect a note to itself
+    if (sourceId === targetId) return;
 
     setNotes((prevNotes) =>
       prevNotes.map((note) => {
@@ -243,20 +240,16 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const currentNote = getNoteById(noteId);
     if (!currentNote) return [];
 
-    // Simple content-based similarity
     const noteWords = currentNote.content.toLowerCase().split(/\s+/);
     const titleWords = currentNote.title.toLowerCase().split(/\s+/);
     const allWords = [...noteWords, ...titleWords];
     
-    // Skip very common words
     const commonWords = new Set(['the', 'and', 'of', 'to', 'a', 'in', 'that', 'is', 'was', 'for', 'on', 'with', 'as']);
     const significantWords = allWords.filter(word => word.length > 2 && !commonWords.has(word));
     
-    // Find other notes with similar content
     return notes
-      .filter(note => note.id !== noteId) // Don't suggest the current note
+      .filter(note => note.id !== noteId)
       .map(note => {
-        // Calculate a simple similarity score
         const noteText = (note.title + ' ' + note.content).toLowerCase();
         const matchScore = significantWords.reduce((score, word) => {
           return score + (noteText.includes(word) ? 1 : 0);
@@ -264,9 +257,9 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
         return { note, score: matchScore };
       })
-      .filter(item => item.score > 0.2) // Only keep notes with some similarity
-      .sort((a, b) => b.score - a.score) // Sort by similarity (highest first)
-      .slice(0, 5) // Take top 5 suggestions
+      .filter(item => item.score > 0.2)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
       .map(item => item.note);
   };
 
@@ -276,7 +269,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const mentionedNoteIds: string[] = [];
     const segments: React.ReactNode[] = [];
     
-    // Look for [[Note Title]] patterns
     const regex = /\[\[(.*?)\]\]/g;
     let lastIndex = 0;
     let match;
@@ -286,16 +278,13 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const matchStart = match.index;
       const matchEnd = regex.lastIndex;
       
-      // Add text before the match
       if (matchStart > lastIndex) {
         segments.push(content.substring(lastIndex, matchStart));
       }
       
-      // Find the mentioned note
       const mentionedNote = notes.find(n => n.title.toLowerCase() === mentionTitle.toLowerCase());
       
       if (mentionedNote) {
-        // Add the linked note
         mentionedNoteIds.push(mentionedNote.id);
         segments.push(
           <span key={`mention-${segments.length}`} className="text-primary font-medium cursor-pointer hover:underline">
@@ -303,14 +292,12 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           </span>
         );
       } else {
-        // If no matching note found, just show as regular text
         segments.push(`[[${mentionTitle}]]`);
       }
       
       lastIndex = matchEnd;
     }
     
-    // Add the remaining text
     if (lastIndex < content.length) {
       segments.push(content.substring(lastIndex));
     }
@@ -322,18 +309,47 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const searchNotes = (filters: SearchFilter): Note[] => {
+    if (dbInitialized && filters) {
+      const criteria: any = {};
+      
+      if (filters.tagIds && filters.tagIds.length > 0) {
+        criteria.tagIds = filters.tagIds;
+      }
+      
+      if (filters.contentTypes && filters.contentTypes.length > 0) {
+        criteria.contentType = filters.contentTypes;
+      }
+      
+      if (filters.startDate) {
+        criteria.fromDate = filters.startDate.toISOString();
+      }
+      
+      if (filters.endDate) {
+        criteria.toDate = filters.endDate.toISOString();
+      }
+      
+      if (filters.query) {
+        criteria.searchText = filters.query;
+      }
+      
+      const matchingIds = metadataDB.queryNotes(criteria);
+      
+      if (matchingIds.length > 0) {
+        return notes.filter(note => matchingIds.includes(note.id));
+      }
+    }
+    
     return notes.filter(note => {
-      // Filter by tags if specified
       if (filters.tagIds && filters.tagIds.length > 0) {
         if (!note.tags.some(tag => filters.tagIds?.includes(tag.id))) {
           return false;
         }
       }
       
-      // Filter by date range if specified
       if (filters.startDate && note.createdAt < filters.startDate) {
         return false;
       }
+      
       if (filters.endDate) {
         const endOfDay = new Date(filters.endDate);
         endOfDay.setHours(23, 59, 59, 999);
@@ -342,14 +358,12 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
       
-      // Filter by content type if specified
       if (filters.contentTypes && filters.contentTypes.length > 0) {
         if (!filters.contentTypes.includes(note.contentType)) {
           return false;
         }
       }
       
-      // Filter by search query if specified
       if (filters.query && filters.query.trim() !== '') {
         const query = filters.query.toLowerCase();
         return (
@@ -367,7 +381,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const filters: SearchFilter = {};
     const lowerQuery = query.toLowerCase();
     
-    // Extract time-related filters
     if (lowerQuery.includes('today')) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -391,7 +404,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       filters.startDate = lastMonth;
     }
     
-    // Extract content type filters
     const contentTypes: ('text' | 'image' | 'link' | 'audio' | 'video')[] = [];
     if (lowerQuery.includes('image') || lowerQuery.includes('photo') || lowerQuery.includes('picture')) {
       contentTypes.push('image');
@@ -413,7 +425,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       filters.contentTypes = contentTypes;
     }
     
-    // Extract tag filters
     const tagFilters: string[] = [];
     tags.forEach(tag => {
       if (lowerQuery.includes(tag.name.toLowerCase())) {
@@ -425,18 +436,14 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       filters.tagIds = tagFilters;
     }
     
-    // Use the remaining query as a general search term
-    // Remove filter keywords to get cleaner search term
     let cleanQuery = lowerQuery
       .replace(/(today|yesterday|last week|last month)/g, '')
       .replace(/(image|photo|picture|link|url|website|audio|sound|recording|video|text|note)/g, '');
     
-    // Remove tag names
     tags.forEach(tag => {
       cleanQuery = cleanQuery.replace(tag.name.toLowerCase(), '');
     });
     
-    // Trim and remove extra spaces
     cleanQuery = cleanQuery.trim().replace(/\s+/g, ' ');
     
     if (cleanQuery) {
@@ -448,10 +455,8 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addToRecentViews = (noteId: string) => {
     setRecentViews(prevViews => {
-      // Remove the note if it's already in the list
       const filteredViews = prevViews.filter(id => id !== noteId);
-      // Add the note to the beginning of the list
-      return [noteId, ...filteredViews].slice(0, 10); // Keep only the 10 most recent
+      return [noteId, ...filteredViews].slice(0, 10);
     });
   };
 
@@ -459,6 +464,20 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return recentViews
       .map(id => getNoteById(id))
       .filter((note): note is Note => note !== undefined);
+  };
+
+  const exportNotes = () => {
+    downloadNotesAsMarkdown(notes, tags);
+  };
+
+  const importNotes = async (files: FileList): Promise<void> => {
+    if (files.length === 0) return;
+    
+    console.log(`Would import ${files.length} files`);
+    
+    Array.from(files).forEach(file => {
+      console.log(`Would import: ${file.name}`);
+    });
   };
 
   return (
@@ -480,7 +499,9 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         searchNotes,
         parseNaturalLanguageQuery,
         getRecentlyViewedNotes,
-        addToRecentViews
+        addToRecentViews,
+        exportNotes,
+        importNotes
       }}
     >
       {children}

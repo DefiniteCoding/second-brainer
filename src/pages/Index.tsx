@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import QuickCaptureButton from '@/components/QuickCaptureButton';
@@ -6,6 +5,7 @@ import CaptureDialog from '@/components/CaptureDialog';
 import NotesList from '@/components/NotesList';
 import Collections from '@/components/Collections';
 import TagManager from '@/components/TagManager';
+import DataExportImport from '@/components/DataExportImport';
 import NoteView from '@/components/NoteView';
 import SearchPanel from '@/components/SearchPanel';
 import { Note, useNotes } from '@/contexts/NotesContext';
@@ -32,7 +32,6 @@ const Index = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Load note from URL parameter if present
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const noteId = params.get('noteId');
@@ -77,20 +76,16 @@ const Index = () => {
   const handleNoteSelected = (note: Note) => {
     setSelectedNote(note);
     addToRecentViews(note.id);
-    // Update URL with note ID for shareable links
     navigate(`/?noteId=${note.id}`, { replace: true });
   };
 
   const handleBackFromNote = () => {
     setSelectedNote(null);
-    // Remove note ID from URL
     navigate('/', { replace: true });
   };
 
-  // Handle keyboard shortcut for quick capture
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K to open capture dialog
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setCaptureDialogOpen(true);
@@ -157,6 +152,7 @@ const Index = () => {
                 <span className="hidden sm:inline">Advanced</span>
               </Button>
               <TagManager />
+              <DataExportImport />
               <Button 
                 variant="outline" 
                 className="flex items-center gap-2"
