@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNotes, Note } from '@/contexts/NotesContext';
+import { useNotes, Note, Tag } from '@/contexts/NotesContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ZoomIn, ZoomOut, Maximize, Radar, FolderTree, NetworkIcon, Search } from 'lucide-react';
@@ -506,8 +505,8 @@ const KnowledgeGraph = () => {
                 <Controls showInteractive={false} />
                 <MiniMap 
                   nodeColor={(node) => {
-                    const tags = (node.data?.tags || []) as Tag[];
-                    return tags.length > 0 ? tags[0].color : '#cccccc';
+                    const nodeTags = (node.data?.tags || []) as Tag[];
+                    return nodeTags.length > 0 ? nodeTags[0].color : '#cccccc';
                   }}
                 />
                 
@@ -557,7 +556,7 @@ const KnowledgeGraph = () => {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="flex flex-wrap gap-1 mb-4">
-              {selectedNode.data.tags.map((tag: Tag) => (
+              {selectedNode.data.tags && (selectedNode.data.tags as Tag[]).map((tag: Tag) => (
                 <Badge 
                   key={tag.id} 
                   style={{ backgroundColor: tag.color }}
@@ -573,7 +572,7 @@ const KnowledgeGraph = () => {
                 <span>{selectedNode.data.connections} connections</span>
               </div>
               <div className="flex-1 flex items-center gap-1">
-                <Link className="h-3 w-3" />
+                <Search className="h-3 w-3" />
                 <span>{selectedNode.data.mentions} mentions</span>
               </div>
             </div>
