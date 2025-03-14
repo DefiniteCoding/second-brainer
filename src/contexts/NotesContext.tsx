@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -23,6 +22,14 @@ export interface Note {
   mentions?: string[]; // IDs of mentioned notes
 }
 
+export type SearchFilter = {
+  tagIds?: string[];
+  startDate?: Date;
+  endDate?: Date;
+  contentTypes?: ('text' | 'image' | 'link' | 'audio' | 'video')[];
+  query?: string;
+}
+
 interface NotesContextType {
   notes: Note[];
   addNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => string;
@@ -37,12 +44,17 @@ interface NotesContextType {
   findBacklinks: (noteId: string) => Note[];
   getSuggestedConnections: (noteId: string) => Note[];
   parseNoteContent: (content: string) => { parsedContent: React.ReactNode, mentionedNoteIds: string[] };
+  searchNotes: (filters: SearchFilter) => Note[];
+  parseNaturalLanguageQuery: (query: string) => SearchFilter;
+  getRecentlyViewedNotes: () => Note[];
+  addToRecentViews: (noteId: string) => void;
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'second-brain-notes';
 const TAGS_STORAGE_KEY = 'second-brain-tags';
+const RECENT_VIEWS_KEY = 'second-brain-recent-views';
 
 const DEFAULT_TAGS: Tag[] = [
   { id: uuidv4(), name: 'Important', color: '#EF4444' },
@@ -54,6 +66,7 @@ const DEFAULT_TAGS: Tag[] = [
 export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [tags, setTags] = useState<Tag[]>(DEFAULT_TAGS);
+  const [recentViews, setRecentViews] = useState<string[]>([]);
 
   useEffect(() => {
     const savedNotes = localStorage.getItem(STORAGE_KEY);
@@ -83,6 +96,15 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       setTags(DEFAULT_TAGS);
     }
+    
+    const savedRecentViews = localStorage.getItem(RECENT_VIEWS_KEY);
+    if (savedRecentViews) {
+      try {
+        setRecentViews(JSON.parse(savedRecentViews));
+      } catch (error) {
+        console.error('Failed to parse recent views from localStorage:', error);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -92,6 +114,10 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(tags));
   }, [tags]);
+  
+  useEffect(() => {
+    localStorage.setItem(RECENT_VIEWS_KEY, JSON.stringify(recentViews));
+  }, [recentViews]);
 
   const addNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date();
@@ -171,7 +197,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
-  // Connection layer methods
   const connectNotes = (sourceId: string, targetId: string) => {
     if (sourceId === targetId) return; // Can't connect a note to itself
 
@@ -214,7 +239,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
-  // Simple content similarity for suggested connections
   const getSuggestedConnections = (noteId: string): Note[] => {
     const currentNote = getNoteById(noteId);
     if (!currentNote) return [];
@@ -246,7 +270,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       .map(item => item.note);
   };
 
-  // Parse note content for wiki-style links [[Note Title]]
   const parseNoteContent = (content: string): { parsedContent: React.ReactNode, mentionedNoteIds: string[] } => {
     if (!content) return { parsedContent: '', mentionedNoteIds: [] };
     
@@ -298,6 +321,146 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   };
 
+  const searchNotes = (filters: SearchFilter): Note[] => {
+    return notes.filter(note => {
+      // Filter by tags if specified
+      if (filters.tagIds && filters.tagIds.length > 0) {
+        if (!note.tags.some(tag => filters.tagIds?.includes(tag.id))) {
+          return false;
+        }
+      }
+      
+      // Filter by date range if specified
+      if (filters.startDate && note.createdAt < filters.startDate) {
+        return false;
+      }
+      if (filters.endDate) {
+        const endOfDay = new Date(filters.endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (note.createdAt > endOfDay) {
+          return false;
+        }
+      }
+      
+      // Filter by content type if specified
+      if (filters.contentTypes && filters.contentTypes.length > 0) {
+        if (!filters.contentTypes.includes(note.contentType)) {
+          return false;
+        }
+      }
+      
+      // Filter by search query if specified
+      if (filters.query && filters.query.trim() !== '') {
+        const query = filters.query.toLowerCase();
+        return (
+          note.title.toLowerCase().includes(query) ||
+          note.content.toLowerCase().includes(query) ||
+          note.tags.some(tag => tag.name.toLowerCase().includes(query))
+        );
+      }
+      
+      return true;
+    });
+  };
+
+  const parseNaturalLanguageQuery = (query: string): SearchFilter => {
+    const filters: SearchFilter = {};
+    const lowerQuery = query.toLowerCase();
+    
+    // Extract time-related filters
+    if (lowerQuery.includes('today')) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      filters.startDate = today;
+      filters.endDate = new Date();
+    } else if (lowerQuery.includes('yesterday')) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      filters.startDate = yesterday;
+      const endOfYesterday = new Date(yesterday);
+      endOfYesterday.setHours(23, 59, 59, 999);
+      filters.endDate = endOfYesterday;
+    } else if (lowerQuery.includes('last week')) {
+      const lastWeek = new Date();
+      lastWeek.setDate(lastWeek.getDate() - 7);
+      filters.startDate = lastWeek;
+    } else if (lowerQuery.includes('last month')) {
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      filters.startDate = lastMonth;
+    }
+    
+    // Extract content type filters
+    const contentTypes: ('text' | 'image' | 'link' | 'audio' | 'video')[] = [];
+    if (lowerQuery.includes('image') || lowerQuery.includes('photo') || lowerQuery.includes('picture')) {
+      contentTypes.push('image');
+    }
+    if (lowerQuery.includes('link') || lowerQuery.includes('url') || lowerQuery.includes('website')) {
+      contentTypes.push('link');
+    }
+    if (lowerQuery.includes('audio') || lowerQuery.includes('sound') || lowerQuery.includes('recording')) {
+      contentTypes.push('audio');
+    }
+    if (lowerQuery.includes('video')) {
+      contentTypes.push('video');
+    }
+    if (lowerQuery.includes('text') || lowerQuery.includes('note')) {
+      contentTypes.push('text');
+    }
+    
+    if (contentTypes.length > 0) {
+      filters.contentTypes = contentTypes;
+    }
+    
+    // Extract tag filters
+    const tagFilters: string[] = [];
+    tags.forEach(tag => {
+      if (lowerQuery.includes(tag.name.toLowerCase())) {
+        tagFilters.push(tag.id);
+      }
+    });
+    
+    if (tagFilters.length > 0) {
+      filters.tagIds = tagFilters;
+    }
+    
+    // Use the remaining query as a general search term
+    // Remove filter keywords to get cleaner search term
+    let cleanQuery = lowerQuery
+      .replace(/(today|yesterday|last week|last month)/g, '')
+      .replace(/(image|photo|picture|link|url|website|audio|sound|recording|video|text|note)/g, '');
+    
+    // Remove tag names
+    tags.forEach(tag => {
+      cleanQuery = cleanQuery.replace(tag.name.toLowerCase(), '');
+    });
+    
+    // Trim and remove extra spaces
+    cleanQuery = cleanQuery.trim().replace(/\s+/g, ' ');
+    
+    if (cleanQuery) {
+      filters.query = cleanQuery;
+    }
+    
+    return filters;
+  };
+
+  const addToRecentViews = (noteId: string) => {
+    setRecentViews(prevViews => {
+      // Remove the note if it's already in the list
+      const filteredViews = prevViews.filter(id => id !== noteId);
+      // Add the note to the beginning of the list
+      return [noteId, ...filteredViews].slice(0, 10); // Keep only the 10 most recent
+    });
+  };
+
+  const getRecentlyViewedNotes = (): Note[] => {
+    return recentViews
+      .map(id => getNoteById(id))
+      .filter((note): note is Note => note !== undefined);
+  };
+
   return (
     <NotesContext.Provider
       value={{
@@ -313,7 +476,11 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         disconnectNotes,
         findBacklinks,
         getSuggestedConnections,
-        parseNoteContent
+        parseNoteContent,
+        searchNotes,
+        parseNaturalLanguageQuery,
+        getRecentlyViewedNotes,
+        addToRecentViews
       }}
     >
       {children}

@@ -7,13 +7,15 @@ import NotesList from '@/components/NotesList';
 import Collections from '@/components/Collections';
 import TagManager from '@/components/TagManager';
 import NoteView from '@/components/NoteView';
+import SearchPanel from '@/components/SearchPanel';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Brain, Search, Network, Tag, ListFilter } from 'lucide-react';
+import { Brain, Search, Network, Tag, ListFilter, Clock, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Index = () => {
   const [captureDialogOpen, setCaptureDialogOpen] = useState(false);
@@ -23,8 +25,9 @@ const Index = () => {
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [advancedSearchActive, setAdvancedSearchActive] = useState(false);
 
-  const { notes, deleteNote, getNoteById } = useNotes();
+  const { notes, deleteNote, getNoteById, getRecentlyViewedNotes, addToRecentViews } = useNotes();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,9 +41,10 @@ const Index = () => {
       const note = getNoteById(noteId);
       if (note) {
         setSelectedNote(note);
+        addToRecentViews(noteId);
       }
     }
-  }, [location.search, getNoteById]);
+  }, [location.search, getNoteById, addToRecentViews]);
 
   const filteredNotes = searchTerm
     ? notes.filter(note => 
@@ -72,6 +76,7 @@ const Index = () => {
 
   const handleNoteSelected = (note: Note) => {
     setSelectedNote(note);
+    addToRecentViews(note.id);
     // Update URL with note ID for shareable links
     navigate(`/?noteId=${note.id}`, { replace: true });
   };
@@ -98,6 +103,8 @@ const Index = () => {
     };
   }, []);
 
+  const recentlyViewedNotes = getRecentlyViewedNotes();
+
   return (
     <>
       <div className="mb-8 flex flex-col items-center justify-center text-center">
@@ -110,27 +117,58 @@ const Index = () => {
         </p>
       </div>
 
-      <div className="relative mb-6 flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search your notes..." 
-            className="pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-2">
-          <TagManager />
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2"
-            onClick={() => navigate('/graph')}
-          >
-            <Network className="h-4 w-4" /> 
-            <span className="hidden sm:inline">Knowledge Graph</span>
-          </Button>
-        </div>
+      <div className="relative mb-6">
+        {advancedSearchActive ? (
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Advanced Search</h3>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setAdvancedSearchActive(false)}
+                >
+                  <span className="sr-only">Close</span>
+                  &times;
+                </Button>
+              </div>
+              <SearchPanel onNoteSelected={handleNoteSelected} />
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search your notes..." 
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={() => setAdvancedSearchActive(true)}
+                title="Advanced Search"
+              >
+                <Sparkles className="h-4 w-4" /> 
+                <span className="hidden sm:inline">Advanced</span>
+              </Button>
+              <TagManager />
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={() => navigate('/graph')}
+                title="Knowledge Graph"
+              >
+                <Network className="h-4 w-4" /> 
+                <span className="hidden sm:inline">Graph</span>
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {selectedNote ? (
@@ -154,6 +192,10 @@ const Index = () => {
               <Tag className="h-4 w-4" />
               <span>Collections</span>
             </TabsTrigger>
+            <TabsTrigger value="recent" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span>Recent</span>
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="all" className="mt-0">
@@ -162,6 +204,21 @@ const Index = () => {
           
           <TabsContent value="collections" className="mt-0">
             <Collections onNoteClick={handleNoteSelected} />
+          </TabsContent>
+          
+          <TabsContent value="recent" className="mt-0">
+            {recentlyViewedNotes.length > 0 ? (
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Recently Viewed</h3>
+                <NotesList notes={recentlyViewedNotes} onNoteClick={handleNoteSelected} />
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Clock className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                <p>No recently viewed notes</p>
+                <p className="text-sm mt-2">View some notes to see them here</p>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       )}
