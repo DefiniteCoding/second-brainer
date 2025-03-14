@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash, Link, Network, Brain, Bold, Italic, Highlight } from 'lucide-react';
+import { ArrowLeft, Edit, Trash, Link, Network, Brain, Bold, Italic, Highlighter } from 'lucide-react';
 import RelatedNotes from './RelatedNotes';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,7 +32,6 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
   const backlinks = findBacklinks(note.id);
   const suggestedConnections = getSuggestedConnections(note.id);
 
-  // Progressive summarization handlers
   const handleBoldSelection = () => {
     const selection = window.getSelection();
     if (selection && !selection.isCollapsed) {
@@ -70,22 +68,16 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
     }
   };
 
-  // Process content for progressive summarization rendering
   const renderProcessedContent = () => {
     let content = note.content;
     
-    // Process bold text
     content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     
-    // Process italic text
     content = content.replace(/_(.*?)_/g, '<em>$1</em>');
     
-    // Process highlight text
     content = content.replace(/==(.*?)==/g, '<mark>$1</mark>');
 
-    // Filter content based on progressive mode
     if (progressiveMode === 'level1') {
-      // Only show bold text
       const boldMatches = note.content.match(/\*\*(.*?)\*\*/g) || [];
       if (boldMatches.length > 0) {
         content = boldMatches.map(match => match.replace(/\*\*(.*?)\*\*/g, '$1')).join('\n\n');
@@ -94,7 +86,6 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
         content = 'No highlighted main points in this note.';
       }
     } else if (progressiveMode === 'level2') {
-      // Show bold and highlighted text
       const matches = [
         ...(note.content.match(/\*\*(.*?)\*\*/g) || []),
         ...(note.content.match(/==(.*?)==/g) || [])
@@ -242,7 +233,7 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
                 onClick={handleHighlightSelection}
                 title="Highlight key insights"
               >
-                <Highlight className="h-4 w-4" />
+                <Highlighter className="h-4 w-4" />
               </Button>
             </div>
           </div>
