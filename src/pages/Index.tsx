@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import QuickCaptureButton from '@/components/QuickCaptureButton';
@@ -10,12 +11,13 @@ import NoteView from '@/components/NoteView';
 import SearchPanel from '@/components/SearchPanel';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Brain, Search, Network, Tag, ListFilter, Clock, Sparkles } from 'lucide-react';
+import { Brain, Search, Network, Tag, ListFilter, Clock, Sparkles, BookOpen, Palette, Bookmark, PenTool, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 const Index = () => {
   const [captureDialogOpen, setCaptureDialogOpen] = useState(false);
@@ -100,12 +102,34 @@ const Index = () => {
 
   const recentlyViewedNotes = getRecentlyViewedNotes();
 
+  // Render note list or collections based on active tab
+  const renderActiveTabContent = () => {
+    if (activeTab === 'collections') {
+      return <Collections onNoteClick={handleNoteSelected} />;
+    } else if (activeTab === 'recent') {
+      return recentlyViewedNotes.length > 0 ? (
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium">Recently Viewed</h3>
+          <NotesList notes={recentlyViewedNotes} onNoteClick={handleNoteSelected} />
+        </div>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">
+          <Clock className="h-16 w-16 mx-auto mb-4 opacity-20" />
+          <p>No recently viewed notes</p>
+          <p className="text-sm mt-2">View some notes to see them here</p>
+        </div>
+      );
+    } else {
+      return <NotesList notes={filteredNotes} onNoteClick={handleNoteSelected} selectedNoteId={selectedNote?.id} />;
+    }
+  };
+
   return (
     <>
       <div className="mb-8 flex flex-col items-center justify-center text-center">
         <div className="mb-4 flex items-center justify-center gap-2">
-          <Brain className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold tracking-tight">Second Brain</h1>
+          <Brain className="h-8 w-8 text-primary bg-gradient-to-r from-purple-500 to-pink-500 rounded-full p-1 text-white" />
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">Second Brain</h1>
         </div>
         <p className="text-muted-foreground max-w-lg">
           Capture your thoughts, ideas, and inspiration in one place with minimal friction.
@@ -148,7 +172,7 @@ const Index = () => {
                 onClick={() => setAdvancedSearchActive(true)}
                 title="Advanced Search"
               >
-                <Sparkles className="h-4 w-4" /> 
+                <Sparkles className="h-4 w-4 text-amber-500" /> 
                 <span className="hidden sm:inline">Advanced</span>
               </Button>
               <TagManager />
@@ -159,7 +183,7 @@ const Index = () => {
                 onClick={() => navigate('/graph')}
                 title="Knowledge Graph"
               >
-                <Network className="h-4 w-4" /> 
+                <Network className="h-4 w-4 text-indigo-500" /> 
                 <span className="hidden sm:inline">Graph</span>
               </Button>
             </div>
@@ -167,57 +191,59 @@ const Index = () => {
         )}
       </div>
 
-      {selectedNote ? (
-        <NoteView 
-          note={selectedNote}
-          onBack={handleBackFromNote}
-          onEdit={(note) => {
-            setIsEditingNote(true);
-            setCaptureDialogOpen(true);
-          }}
-          onDelete={handleOpenDeleteDialog}
-        />
-      ) : (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="all" className="flex items-center gap-2">
-              <ListFilter className="h-4 w-4" />
-              <span>All Notes</span>
-            </TabsTrigger>
-            <TabsTrigger value="collections" className="flex items-center gap-2">
-              <Tag className="h-4 w-4" />
-              <span>Collections</span>
-            </TabsTrigger>
-            <TabsTrigger value="recent" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span>Recent</span>
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all" className="mt-0">
-            <NotesList notes={filteredNotes} onNoteClick={handleNoteSelected} />
-          </TabsContent>
-          
-          <TabsContent value="collections" className="mt-0">
-            <Collections onNoteClick={handleNoteSelected} />
-          </TabsContent>
-          
-          <TabsContent value="recent" className="mt-0">
-            {recentlyViewedNotes.length > 0 ? (
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">Recently Viewed</h3>
-                <NotesList notes={recentlyViewedNotes} onNoteClick={handleNoteSelected} />
+      <ResizablePanelGroup 
+        direction="horizontal" 
+        className="min-h-[600px] rounded-lg border"
+      >
+        <ResizablePanel defaultSize={30} minSize={20}>
+          <div className="h-full p-4 bg-card">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="mb-4 bg-muted/50 p-1">
+                <TabsTrigger value="all" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                  <FileText className="h-4 w-4 text-blue-500" />
+                  <span>All Notes</span>
+                </TabsTrigger>
+                <TabsTrigger value="collections" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                  <Bookmark className="h-4 w-4 text-green-500" />
+                  <span>Collections</span>
+                </TabsTrigger>
+                <TabsTrigger value="recent" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                  <Clock className="h-4 w-4 text-amber-500" />
+                  <span>Recent</span>
+                </TabsTrigger>
+              </TabsList>
+              
+              <div className="overflow-y-auto max-h-[calc(100vh-280px)]">
+                {renderActiveTabContent()}
               </div>
+            </Tabs>
+          </div>
+        </ResizablePanel>
+        
+        <ResizableHandle withHandle />
+        
+        <ResizablePanel defaultSize={70}>
+          <div className="h-full p-4 bg-card">
+            {selectedNote ? (
+              <NoteView 
+                note={selectedNote}
+                onBack={handleBackFromNote}
+                onEdit={(note) => {
+                  setIsEditingNote(true);
+                  setCaptureDialogOpen(true);
+                }}
+                onDelete={handleOpenDeleteDialog}
+              />
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Clock className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                <p>No recently viewed notes</p>
-                <p className="text-sm mt-2">View some notes to see them here</p>
+              <div className="flex flex-col items-center justify-center h-full text-center p-8 text-muted-foreground">
+                <BookOpen className="h-16 w-16 mb-4 text-pink-400 opacity-70" />
+                <h2 className="text-xl font-medium mb-2">Select a note to view</h2>
+                <p className="max-w-md">Click on a note from the list on the left to view its contents, or create a new note using the button in the bottom right.</p>
               </div>
             )}
-          </TabsContent>
-        </Tabs>
-      )}
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       <QuickCaptureButton onCaptureClick={() => setCaptureDialogOpen(true)} />
       
