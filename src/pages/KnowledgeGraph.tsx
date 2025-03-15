@@ -18,7 +18,7 @@ import {
   useEdgesState,
   MarkerType,
   Panel,
-  useReactFlow,
+  ReactFlowProvider,
   Node as ReactFlowNode,
   Edge as ReactFlowEdge
 } from '@xyflow/react';
@@ -367,15 +367,14 @@ const CustomNode = ({ data }: { data: NodeData }) => {
   );
 };
 
-// Main component
-const KnowledgeGraph = () => {
+// Flow component that will be wrapped with ReactFlowProvider
+const KnowledgeGraphFlow = () => {
   const { notes, tags } = useNotes();
   const navigate = useNavigate();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [layout, setLayout] = useState<LayoutType>('force');
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const reactFlowInstance = useReactFlow();
   
   // Filter state
   const [activeTagIds, setActiveTagIds] = useState<string[]>([]);
@@ -442,10 +441,16 @@ const KnowledgeGraph = () => {
     setNodes(graphData.nodes);
     setEdges(graphData.edges);
     
-    // Reset zoom/pan to fit everything
+    // We'll use fitView after everything is rendered
     setTimeout(() => {
-      reactFlowInstance.fitView({ padding: 0.2 });
-    }, 50);
+      try {
+        document.querySelector('.react-flow__renderer')?.dispatchEvent(
+          new Event('reactflow.fitview')
+        );
+      } catch (error) {
+        console.log('Error with fit view:', error);
+      }
+    }, 100);
   };
   
   const handleNodeClick = (_event: React.MouseEvent, node: Node) => {
@@ -473,9 +478,27 @@ const KnowledgeGraph = () => {
         : [...prev, type]
     );
   };
+
+  const handleZoomIn = () => {
+    document.querySelector('.react-flow__renderer')?.dispatchEvent(
+      new Event('reactflow.zoomin')
+    );
+  };
+
+  const handleZoomOut = () => {
+    document.querySelector('.react-flow__renderer')?.dispatchEvent(
+      new Event('reactflow.zoomout')
+    );
+  };
+
+  const handleFitView = () => {
+    document.querySelector('.react-flow__renderer')?.dispatchEvent(
+      new Event('reactflow.fitview')
+    );
+  };
   
   return (
-    <div className="flex flex-col h-full">
+    <>
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => navigate('/')}>
@@ -622,7 +645,7 @@ const KnowledgeGraph = () => {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button size="sm" variant="outline" onClick={() => reactFlowInstance.zoomIn()}>
+                    <Button size="sm" variant="outline" onClick={handleZoomIn}>
                       <ZoomIn className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
@@ -631,7 +654,7 @@ const KnowledgeGraph = () => {
                 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button size="sm" variant="outline" onClick={() => reactFlowInstance.zoomOut()}>
+                    <Button size="sm" variant="outline" onClick={handleZoomOut}>
                       <ZoomOut className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
@@ -640,7 +663,7 @@ const KnowledgeGraph = () => {
                 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button size="sm" variant="outline" onClick={() => reactFlowInstance.fitView()}>
+                    <Button size="sm" variant="outline" onClick={handleFitView}>
                       <Maximize className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
@@ -661,6 +684,17 @@ const KnowledgeGraph = () => {
           </ReactFlow>
         </div>
       </div>
+    </>
+  );
+};
+
+// Main component that wraps the Flow with the Provider
+const KnowledgeGraph = () => {
+  return (
+    <div className="flex flex-col h-full">
+      <ReactFlowProvider>
+        <KnowledgeGraphFlow />
+      </ReactFlowProvider>
     </div>
   );
 };
