@@ -21,19 +21,22 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 const Index = () => {
   const [captureDialogOpen, setCaptureDialogOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteToEdit, setNoteToEdit] = useState<Note | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [advancedSearchActive, setAdvancedSearchActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { notes, deleteNote, getNoteById, getRecentlyViewedNotes, addToRecentViews } = useNotes();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Handle URL parameters for direct note access
   useEffect(() => {
+    setIsLoading(true);
     const params = new URLSearchParams(location.search);
     const noteId = params.get('noteId');
     
@@ -42,10 +45,36 @@ const Index = () => {
       if (note) {
         setSelectedNote(note);
         addToRecentViews(noteId);
+      } else {
+        // Handle case when note is not found
+        toast({
+          title: "Note not found",
+          description: `Could not find a note with ID: ${noteId}`,
+          variant: "destructive"
+        });
+        navigate('/', { replace: true });
       }
     }
-  }, [location.search, getNoteById, addToRecentViews]);
+    setIsLoading(false);
+  }, [location.search, getNoteById, addToRecentViews, navigate, toast]);
 
+  // Set up keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Quick capture shortcut
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        openCaptureDialog();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Filter notes based on search term
   const filteredNotes = searchTerm
     ? notes.filter(note => 
         note.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -54,11 +83,29 @@ const Index = () => {
       )
     : notes;
 
+  const recentlyViewedNotes = getRecentlyViewedNotes();
+
+  // Centralized dialog opening logic with proper state management
+  const openCaptureDialog = (noteToEdit?: Note) => {
+    if (noteToEdit) {
+      setNoteToEdit(noteToEdit);
+    } else {
+      setNoteToEdit(null);
+    }
+    setCaptureDialogOpen(true);
+  };
+
+  const handleCaptureDialogClose = () => {
+    setNoteToEdit(null);
+    setCaptureDialogOpen(false);
+  };
+
   const handleDeleteNote = () => {
     if (noteToDelete) {
       deleteNote(noteToDelete);
       if (selectedNote && selectedNote.id === noteToDelete) {
         setSelectedNote(null);
+        navigate('/', { replace: true });
       }
       toast({
         title: "Note deleted",
@@ -85,31 +132,27 @@ const Index = () => {
     navigate('/', { replace: true });
   };
 
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setCaptureDialogOpen(true);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
-  const recentlyViewedNotes = getRecentlyViewedNotes();
-
   // Render note list or collections based on active tab
   const renderActiveTabContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-40">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      );
+    }
+
     if (activeTab === 'collections') {
       return <Collections onNoteClick={handleNoteSelected} />;
     } else if (activeTab === 'recent') {
       return recentlyViewedNotes.length > 0 ? (
         <div className="space-y-4">
           <h3 className="text-sm font-medium">Recently Viewed</h3>
-          <NotesList notes={recentlyViewedNotes} onNoteClick={handleNoteSelected} />
+          <NotesList 
+            notes={recentlyViewedNotes} 
+            onNoteClick={handleNoteSelected} 
+            selectedNoteId={selectedNote?.id}
+          />
         </div>
       ) : (
         <div className="text-center py-8 text-muted-foreground">
@@ -119,7 +162,21 @@ const Index = () => {
         </div>
       );
     } else {
-      return <NotesList notes={filteredNotes} onNoteClick={handleNoteSelected} selectedNoteId={selectedNote?.id} />;
+      return filteredNotes.length > 0 ? (
+        <NotesList 
+          notes={filteredNotes} 
+          onNoteClick={handleNoteSelected} 
+          selectedNoteId={selectedNote?.id} 
+        />
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">
+          <FileText className="h-16 w-16 mx-auto mb-4 opacity-20" />
+          <p>No notes found</p>
+          {searchTerm && (
+            <p className="text-sm mt-2">Try a different search term</p>
+          )}
+        </div>
+      );
     }
   };
 
@@ -223,14 +280,15 @@ const Index = () => {
         
         <ResizablePanel defaultSize={70}>
           <div className="h-full p-4 bg-card">
-            {selectedNote ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">Loading note...</p>
+              </div>
+            ) : selectedNote ? (
               <NoteView 
                 note={selectedNote}
                 onBack={handleBackFromNote}
-                onEdit={(note) => {
-                  setIsEditingNote(true);
-                  setCaptureDialogOpen(true);
-                }}
+                onEdit={() => openCaptureDialog(selectedNote)}
                 onDelete={handleOpenDeleteDialog}
               />
             ) : (
@@ -244,11 +302,12 @@ const Index = () => {
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      <QuickCaptureButton onCaptureClick={() => setCaptureDialogOpen(true)} />
+      <QuickCaptureButton onCaptureClick={() => openCaptureDialog()} />
       
       <CaptureDialog
         open={captureDialogOpen}
-        onOpenChange={setCaptureDialogOpen}
+        onOpenChange={handleCaptureDialogClose}
+        noteToEdit={noteToEdit}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
