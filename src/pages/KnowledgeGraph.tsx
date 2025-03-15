@@ -10,7 +10,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
-import ReactFlow, {
+import {
+  ReactFlow,
   MiniMap,
   Controls,
   Background,
@@ -18,33 +19,32 @@ import ReactFlow, {
   useEdgesState,
   MarkerType,
   Panel,
-  useReactFlow
+  useReactFlow,
+  Node as ReactFlowNode,
+  Edge as ReactFlowEdge
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 // Interface for Flow Node Data that extends Note
-interface NodeData extends Partial<Note> {
-  connections: number;
-  mentions: number;
+interface NodeData {
+  id?: string;
+  title?: string;
+  content?: string;
+  contentType?: 'text' | 'image' | 'link' | 'audio' | 'video';
+  createdAt?: Date;
+  updatedAt?: Date;
+  tags?: Tag[];
+  source?: string;
+  location?: { latitude: number; longitude: number };
+  mediaUrl?: string;
+  connections: number; // Number of connections, not the actual string[] from Note
+  mentions: number; // Number of mentions, not the actual string[] from Note
 }
 
 // Type definitions
-type Node = {
-  id: string;
-  position: { x: number; y: number };
-  data: NodeData;
-  type?: string;
-};
+type Node = ReactFlowNode<NodeData>;
 
-type Edge = {
-  id: string;
-  source: string;
-  target: string;
-  animated?: boolean;
-  markerEnd?: { type: MarkerType };
-  type?: string;
-  data?: { type: 'connection' | 'mention' };
-};
+type Edge = ReactFlowEdge<{ type: 'connection' | 'mention' }>;
 
 // Node types
 const NODE_TYPES = {
@@ -574,7 +574,7 @@ const KnowledgeGraph = () => {
                 </CardHeader>
                 <CardContent className="p-4 pt-0">
                   <div className="flex flex-wrap gap-1 mb-4">
-                    {selectedNode.data.tags && Array.isArray(selectedNode.data.tags) && selectedNode.data.tags.map((tag: Tag) => (
+                    {selectedNode.data.tags && selectedNode.data.tags.map((tag: Tag) => (
                       <Badge 
                         key={tag.id} 
                         style={{ backgroundColor: tag.color }}
