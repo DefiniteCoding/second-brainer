@@ -13,6 +13,7 @@ import {
   DialogDescription
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
+import DemoDataLoader from './DemoDataLoader';
 
 const DataExportImport: React.FC = () => {
   const { exportNotes, importNotes } = useNotes();
@@ -90,6 +91,15 @@ const DataExportImport: React.FC = () => {
                 Tag relationships, links, and other metadata are managed efficiently 
                 in a local database for fast searching and organization.
               </p>
+            </div>
+            
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-medium">Demo Data</h3>
+              <p className="text-sm text-muted-foreground">
+                Load sample notes to explore the features of this application 
+                without having to create content from scratch.
+              </p>
+              <DemoDataLoader />
             </div>
           </div>
 
