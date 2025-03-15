@@ -240,24 +240,79 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const currentNote = getNoteById(noteId);
     if (!currentNote) return [];
 
-    const noteWords = currentNote.content.toLowerCase().split(/\s+/);
-    const titleWords = currentNote.title.toLowerCase().split(/\s+/);
-    const allWords = [...noteWords, ...titleWords];
+    const noteText = (currentNote.title + ' ' + currentNote.content).toLowerCase();
     
-    const commonWords = new Set(['the', 'and', 'of', 'to', 'a', 'in', 'that', 'is', 'was', 'for', 'on', 'with', 'as']);
-    const significantWords = allWords.filter(word => word.length > 2 && !commonWords.has(word));
+    const commonWords = new Set([
+      'the', 'and', 'of', 'to', 'a', 'in', 'that', 'is', 'was', 'for', 
+      'on', 'with', 'as', 'by', 'at', 'from', 'be', 'have', 'or', 
+      'this', 'are', 'it', 'an', 'but', 'not', 'what', 'all', 'were', 
+      'when', 'we', 'there', 'can', 'been', 'has', 'more', 'who'
+    ]);
+    
+    const words = noteText.split(/\W+/).filter(word => 
+      word.length > 2 && !commonWords.has(word)
+    );
+    
+    const wordFrequency: Record<string, number> = {};
+    words.forEach(word => {
+      wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+    });
+    
+    const keyTerms = Object.entries(wordFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([term]) => term);
+    
+    const bigramSeparator = ' ';
+    const bigrams: Record<string, number> = {};
+    
+    for (let i = 0; i < words.length - 1; i++) {
+      if (!commonWords.has(words[i]) && !commonWords.has(words[i+1])) {
+        const bigram = words[i] + bigramSeparator + words[i+1];
+        bigrams[bigram] = (bigrams[bigram] || 0) + 1;
+      }
+    }
+    
+    const keyPhrases = Object.entries(bigrams)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([phrase]) => phrase);
+    
+    const significantTerms = [...keyTerms, ...keyPhrases];
     
     return notes
       .filter(note => note.id !== noteId)
       .map(note => {
-        const noteText = (note.title + ' ' + note.content).toLowerCase();
-        const matchScore = significantWords.reduce((score, word) => {
-          return score + (noteText.includes(word) ? 1 : 0);
-        }, 0) / significantWords.length;
+        const otherNoteText = (note.title + ' ' + note.content).toLowerCase();
+        
+        const termMatches = significantTerms.filter(term => 
+          otherNoteText.includes(term)
+        ).length;
+        
+        const termScore = termMatches / significantTerms.length;
+        
+        const titleMatches = significantTerms.filter(term => 
+          note.title.toLowerCase().includes(term)
+        ).length;
+        
+        const titleBoost = titleMatches > 0 ? 0.2 : 0;
+        
+        const tagOverlap = currentNote.tags.filter(tag => 
+          note.tags.some(otherTag => otherTag.id === tag.id)
+        ).length;
+        
+        const tagScore = tagOverlap > 0 ? 0.1 * tagOverlap : 0;
+        
+        const daysDifference = Math.abs(
+          (note.createdAt.getTime() - currentNote.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        const recencyBoost = daysDifference < 7 ? 0.1 : 0;
+        
+        const matchScore = termScore * 0.7 + titleBoost + tagScore + recencyBoost;
         
         return { note, score: matchScore };
       })
-      .filter(item => item.score > 0.2)
+      .filter(item => item.score > 0.15)
       .sort((a, b) => b.score - a.score)
       .slice(0, 5)
       .map(item => item.note);

@@ -1,6 +1,8 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Note } from '@/contexts/NotesContext';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface NoteContentRendererProps {
   note: Note;
@@ -13,84 +15,68 @@ const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
   processedContent,
   progressiveMode
 }) => {
-  const renderProcessedContent = () => {
-    let content = note.content;
+  const summarizedContent = useMemo(() => {
+    if (!progressiveMode) return null;
     
-    content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    const content = typeof processedContent === 'string' 
+      ? processedContent 
+      : note.content;
     
-    content = content.replace(/_(.*?)_/g, '<em>$1</em>');
-    
-    content = content.replace(/==(.*?)==/g, '<mark>$1</mark>');
-
     if (progressiveMode === 'level1') {
-      const boldMatches = note.content.match(/\*\*(.*?)\*\*/g) || [];
-      if (boldMatches.length > 0) {
-        content = boldMatches.map(match => match.replace(/\*\*(.*?)\*\*/g, '$1')).join('\n\n');
-        content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      } else {
-        content = 'No highlighted main points in this note.';
-      }
+      // Main points summarization (roughly 50% of content)
+      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+      const importantSentences = sentences
+        .filter((_, i) => i % 2 === 0 || sentences.length < 5)
+        .join('. ') + '.';
+      return importantSentences;
     } else if (progressiveMode === 'level2') {
-      const matches = [
-        ...(note.content.match(/\*\*(.*?)\*\*/g) || []),
-        ...(note.content.match(/==(.*?)==/g) || [])
-      ];
-      if (matches.length > 0) {
-        content = matches.map(match => 
-          match.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-               .replace(/==(.*?)==/g, '<mark>$1</mark>')
-        ).join('\n\n');
-      } else {
-        content = 'No highlighted content in this note.';
+      // Key ideas summarization (roughly 25% of content)
+      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+      // Extract first sentence and any sentences with important keywords
+      const keywordList = ['important', 'key', 'critical', 'essential', 'main', 'significant'];
+      const keyIdeas = [sentences[0]];
+      
+      sentences.slice(1).forEach(sentence => {
+        const lowerSentence = sentence.toLowerCase();
+        if (keywordList.some(keyword => lowerSentence.includes(keyword))) {
+          keyIdeas.push(sentence);
+        }
+      });
+      
+      // If we have too few sentences, add more based on position
+      if (keyIdeas.length < Math.ceil(sentences.length / 4)) {
+        sentences.forEach((sentence, index) => {
+          if (index % 4 === 0 && !keyIdeas.includes(sentence)) {
+            keyIdeas.push(sentence);
+          }
+        });
       }
+      
+      return keyIdeas.join('. ') + '.';
     }
-
-    return <div dangerouslySetInnerHTML={{ __html: content }} />;
-  };
-
-  const renderContent = () => {
-    switch (note.contentType) {
-      case 'image':
-        return (
-          <div className="space-y-4">
-            {note.mediaUrl && (
-              <div className="my-4 flex justify-center">
-                <img src={note.mediaUrl} alt="Note media" className="max-h-80 rounded-md" />
-              </div>
-            )}
-            <div className="whitespace-pre-wrap">
-              {progressiveMode ? renderProcessedContent() : processedContent}
-            </div>
-          </div>
-        );
-      case 'link':
-        return (
-          <div className="space-y-4">
-            {note.mediaUrl && (
-              <a 
-                href={note.mediaUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="block p-3 border rounded-md hover:bg-muted/50 transition-colors"
-              >
-                {note.mediaUrl}
-              </a>
-            )}
-            <div className="whitespace-pre-wrap">
-              {progressiveMode ? renderProcessedContent() : processedContent}
-            </div>
-          </div>
-        );
-      default:
-        return (
-          <div className="whitespace-pre-wrap">
-            {progressiveMode ? renderProcessedContent() : processedContent}
-          </div>
-        );
-    }
-  };
-
-  return renderContent();
+    
+    return null;
+  }, [note.content, processedContent, progressiveMode]);
+  
+  return (
+    <div className="prose prose-sm max-w-none dark:prose-invert">
+      {summarizedContent ? (
+        <div className="p-4 border rounded-md bg-muted/50">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {summarizedContent}
+          </ReactMarkdown>
+        </div>
+      ) : (
+        typeof processedContent === 'string' ? (
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {processedContent}
+          </ReactMarkdown>
+        ) : (
+          processedContent
+        )
+      )}
+    </div>
+  );
 };
 
 export default NoteContentRenderer;

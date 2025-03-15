@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNotes, Note, Tag } from '@/contexts/NotesContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +38,7 @@ interface NodeData {
   mediaUrl?: string;
   connections: number; // Number of connections, not the actual string[] from Note
   mentions: number; // Number of mentions, not the actual string[] from Note
+  [key: string]: unknown; // Index signature to satisfy Record<string, unknown>
 }
 
 // Type definitions
