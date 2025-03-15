@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Note } from '@/contexts/NotesContext';
 import ReactMarkdown from 'react-markdown';
@@ -58,6 +57,9 @@ const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
     return null;
   }, [note.content, processedContent, progressiveMode]);
   
+  // Check if processedContent is an array of React elements (for content with note mentions)
+  const isProcessedContentArray = Array.isArray(processedContent);
+  
   return (
     <div className="prose prose-sm max-w-none dark:prose-invert">
       {summarizedContent ? (
@@ -66,14 +68,14 @@ const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
             {summarizedContent}
           </ReactMarkdown>
         </div>
+      ) : isProcessedContentArray ? (
+        // If it's an array with mentions, render it directly
+        <div>{processedContent}</div>
       ) : (
-        typeof processedContent === 'string' ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {processedContent}
-          </ReactMarkdown>
-        ) : (
-          processedContent
-        )
+        // Otherwise, render it as markdown
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {typeof processedContent === 'string' ? processedContent : note.content}
+        </ReactMarkdown>
       )}
     </div>
   );
