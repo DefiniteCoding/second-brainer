@@ -72,40 +72,83 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   };
 
   const handleFormat = (type: string) => {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) return;
+    if (!textareaRef.current) return;
 
-    const range = selection.getRangeAt(0);
-    const selectedText = selection.toString();
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
 
-    let formattedText = selectedText;
+    let prefix = '';
+    let suffix = '';
+    let cursorOffset = 0;
+
     switch (type) {
       case 'bold':
-        formattedText = `**${selectedText}**`;
+        prefix = '**';
+        suffix = '**';
+        cursorOffset = 2;
         break;
       case 'italic':
-        formattedText = `*${selectedText}*`;
+        prefix = '*';
+        suffix = '*';
+        cursorOffset = 1;
         break;
       case 'heading':
-        formattedText = `# ${selectedText}`;
+        prefix = '# ';
+        suffix = '';
+        cursorOffset = 2;
         break;
       case 'quote':
-        formattedText = `> ${selectedText}`;
+        prefix = '> ';
+        suffix = '';
+        cursorOffset = 2;
         break;
       case 'code':
-        formattedText = `\`${selectedText}\``;
+        if (selectedText.includes('\n')) {
+          prefix = '```\n';
+          suffix = '\n```';
+          cursorOffset = 4;
+        } else {
+          prefix = '`';
+          suffix = '`';
+          cursorOffset = 1;
+        }
         break;
       case 'link':
         const url = prompt('Enter URL:', 'https://');
         if (url) {
-          formattedText = `[${selectedText}](${url})`;
+          prefix = '[';
+          suffix = `](${url})`;
+          cursorOffset = 1;
         }
         break;
     }
 
-    const newContent = content.substring(0, range.startOffset) + formattedText + content.substring(range.endOffset);
+    const newContent = 
+      content.substring(0, start) +
+      prefix +
+      selectedText +
+      suffix +
+      content.substring(end);
+
     setContent(newContent);
-    selection.removeAllRanges();
+
+    // Restore cursor position and focus
+    requestAnimationFrame(() => {
+      textarea.focus();
+      if (selectedText) {
+        textarea.setSelectionRange(
+          start + prefix.length,
+          end + prefix.length
+        );
+      } else {
+        textarea.setSelectionRange(
+          start + prefix.length,
+          start + prefix.length
+        );
+      }
+    });
   };
 
   const handleAddImage = async (e: React.ChangeEvent<HTMLInputElement>) => {

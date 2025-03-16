@@ -1,0 +1,168 @@
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Sparkles, Tag, Link2, Text } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useNotes } from '@/contexts/NotesContext';
+import { useToast } from '@/components/ui/use-toast';
+import { extractKeywords, findRelatedNotes, generateSummary } from '@/services/ai';
+
+export const FloatingAIButton = () => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { notes, updateNote } = useNotes();
+  const { toast } = useToast();
+
+  const handleAnalyzeAllNotes = async () => {
+    if (!notes.length) {
+      toast({
+        title: "No Notes Found",
+        description: "Create some notes first before running analysis.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      
+      // Process all notes in parallel
+      await Promise.all(notes.map(async (note) => {
+        try {
+          // Extract keywords and find connections in parallel for each note
+          const [keywordsResponse, relatedNotesResponse] = await Promise.all([
+            extractKeywords(note.content),
+            findRelatedNotes(note.content)
+          ]);
+
+          const updates: Partial<typeof note> = {};
+
+          if (keywordsResponse.success && keywordsResponse.data) {
+            updates.tags = keywordsResponse.data;
+          }
+
+          if (relatedNotesResponse.success && relatedNotesResponse.data) {
+            updates.relationships = relatedNotesResponse.data;
+          }
+
+          // Only update if we have changes
+          if (Object.keys(updates).length > 0) {
+            await updateNote(note.id, {
+              ...note,
+              ...updates
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to process note ${note.id}:`, error);
+        }
+      }));
+
+      toast({
+        title: "Analysis Complete",
+        description: `Processed ${notes.length} notes and updated their tags and connections.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Analysis Failed",
+        description: "Some notes could not be processed. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSuggestTitles = async () => {
+    const notesWithGenericTitles = notes.filter(note => 
+      note.title?.startsWith('Note ') && /\d/.test(note.title)
+    );
+
+    if (!notesWithGenericTitles.length) {
+      toast({
+        title: "No Generic Titles Found",
+        description: "There are no notes with generic titles to update.",
+      });
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      
+      // Process notes with generic titles in parallel
+      await Promise.all(notesWithGenericTitles.map(async (note) => {
+        try {
+          const summary = await generateSummary(note.content);
+          
+          if (summary.success && summary.data) {
+            await updateNote(note.id, {
+              ...note,
+              title: summary.data
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to generate title for note ${note.id}:`, error);
+        }
+      }));
+
+      toast({
+        title: "Titles Updated",
+        description: `Generated new titles for ${notesWithGenericTitles.length} notes.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Title Generation Failed",
+        description: "Some titles could not be generated. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className={cn(
+            "rounded-full hover:scale-105 transition-transform fixed bottom-6 right-6 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 z-50 shadow-lg",
+            isProcessing && "animate-pulse"
+          )}
+        >
+          <Sparkles className="h-4 w-4 text-indigo-500" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent 
+        align="end" 
+        className="w-72 p-2"
+      >
+        <div className="space-y-2">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 text-sm"
+            onClick={handleAnalyzeAllNotes}
+            disabled={isProcessing}
+          >
+            <div className="flex gap-2 items-center">
+              <div className="flex -space-x-1">
+                <Tag className="h-4 w-4 text-blue-500" />
+                <Link2 className="h-4 w-4 text-purple-500" />
+              </div>
+            </div>
+            Analyze all notes (tags & connections)
+          </Button>
+          
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 text-sm"
+            onClick={handleSuggestTitles}
+            disabled={isProcessing}
+          >
+            <Text className="h-4 w-4 text-green-500" />
+            Generate titles for generic notes
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}; 
