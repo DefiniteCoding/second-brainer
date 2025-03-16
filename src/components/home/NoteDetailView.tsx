@@ -11,23 +11,30 @@ import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { useToast } from '@/components/ui/use-toast';
 import { FloatingFormatToolbar } from '@/components/notes/FloatingFormatToolbar';
 import { motion, AnimatePresence } from 'framer-motion';
+import NoteEditor from '@/components/NoteEditor';
+import { fadeIn } from '@/lib/animations';
 
 interface NoteDetailViewProps {
   selectedNote: Note | null;
   isLoading: boolean;
   onBack: () => void;
   onDelete: (noteId: string) => void;
+  isEditing: boolean;
+  onEdit: (note: Note) => void;
+  isCreating: boolean;
 }
 
 const NoteDetailView: React.FC<NoteDetailViewProps> = ({
   selectedNote,
   isLoading,
   onBack,
-  onDelete
+  onDelete,
+  isEditing,
+  onEdit,
+  isCreating
 }) => {
   const { createNote, updateNote } = useNotes();
   const { toast } = useToast();
-  const [isEditing, setIsEditing] = useState(!selectedNote);
   const [title, setTitle] = useState(selectedNote?.title || '');
   const [content, setContent] = useState(selectedNote?.content || '');
   const [isUploading, setIsUploading] = useState(false);
@@ -48,11 +55,9 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
     if (selectedNote) {
       setTitle(selectedNote.title);
       setContent(selectedNote.content);
-      setIsEditing(false);
     } else {
       setTitle('');
       setContent('');
-      setIsEditing(true);
     }
   }, [selectedNote]);
 
@@ -72,7 +77,6 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
       } else {
         await createNote({ title, content });
       }
-      setIsEditing(false);
       toast({
         title: selectedNote ? "Note updated" : "Note created",
         description: `Your note has been ${selectedNote ? 'updated' : 'created'} successfully.`
@@ -239,191 +243,38 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center p-6 bg-muted/5">
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="animate-pulse flex flex-col items-center"
-        >
-          <div className="h-8 w-32 bg-muted rounded mb-4"></div>
-          <div className="h-4 w-48 bg-muted rounded mb-2"></div>
-          <div className="h-4 w-32 bg-muted rounded mb-4"></div>
-          <div className="h-32 w-full max-w-md bg-muted rounded"></div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (!selectedNote && !isEditing) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className="h-full flex flex-col items-center justify-center text-center p-8 bg-muted/5"
+      <motion.div
+        variants={fadeIn}
+        initial="initial"
+        animate="animate"
+        className="h-full flex items-center justify-center"
       >
-        <motion.div 
-          initial={{ scale: 0.9 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.2 }}
-          className="p-6 rounded-full bg-muted/30 mb-6"
-        >
-          <BookOpen className="h-16 w-16 text-indigo-400 opacity-70" />
-        </motion.div>
-        <motion.h2 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-xl font-medium mb-3 bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent"
-        >
-          Start writing a new note
-        </motion.h2>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Button 
-            onClick={() => setIsEditing(true)}
-            className="mt-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:scale-105 transition-transform"
-          >
-            Create Note
-          </Button>
-        </motion.div>
+        <div className="animate-pulse">Loading...</div>
       </motion.div>
     );
   }
 
-  if (isEditing || !selectedNote) {
+  if (isCreating || isEditing) {
     return (
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="h-full bg-card"
-      >
-        <div className="h-full bg-muted/5 border-l p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsEditing(false)}
-                className="rounded-full hover:bg-muted/80 transition-colors"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Note title..."
-                className="text-xl font-medium bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 w-[300px] placeholder:text-muted-foreground/50"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsEditing(false)}
-                className="rounded-full hover:bg-red-50 text-red-500 transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={handleSave}
-                className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:scale-105 transition-transform"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                {selectedNote ? 'Update' : 'Save'}
-              </Button>
-            </div>
-          </div>
-
-          <ScrollArea className="h-[calc(100vh-200px)]">
-            <div className="space-y-4">
-              <div className="relative">
-                <Textarea
-                  ref={textareaRef}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Start writing your note..."
-                  className="min-h-[300px] bg-transparent border-none focus-visible:ring-0 resize-none placeholder:text-muted-foreground/50 text-base leading-relaxed"
-                />
-                <FloatingFormatToolbar onFormat={handleFormat} />
-              </div>
-              
-              <motion.div 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="flex gap-2 sticky bottom-0 bg-background/80 backdrop-blur-sm p-2 rounded-lg border shadow-lg"
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  onChange={handleAddImage}
-                  className="hidden"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="rounded-full hover:scale-105 transition-transform"
-                  title="Add Image"
-                  disabled={isUploading}
-                >
-                  {isUploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ImageIcon className="h-4 w-4" />
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleAddLink}
-                  className="rounded-full hover:scale-105 transition-transform"
-                  title="Add Link"
-                >
-                  <LinkIcon className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleToggleRecording}
-                  className={`rounded-full hover:scale-105 transition-transform ${
-                    isRecording ? 'bg-red-50 text-red-500 animate-pulse border-red-200' : ''
-                  }`}
-                  title="Record Voice"
-                >
-                  <Mic className="h-4 w-4" />
-                </Button>
-              </motion.div>
-            </div>
-          </ScrollArea>
-        </div>
-      </motion.div>
+      <NoteEditor
+        note={selectedNote}
+        onBack={onBack}
+        isCreating={isCreating}
+      />
     );
+  }
+
+  if (!selectedNote) {
+    return null;
   }
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="h-full bg-card"
-    >
-      <div className="h-full bg-muted/5 border-l">
-        <NoteView 
-          note={selectedNote}
-          onBack={onBack}
-          onEdit={() => setIsEditing(true)}
-          onDelete={onDelete}
-        />
-      </div>
-    </motion.div>
+    <NoteView
+      note={selectedNote}
+      onBack={onBack}
+      onEdit={onEdit}
+      onDelete={onDelete}
+    />
   );
 };
 
