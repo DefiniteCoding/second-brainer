@@ -27,7 +27,7 @@ interface FilterPanelProps {
   }) => void;
 }
 
-const FilterPanel: React.FC<FilterPanelProps> = ({ onReset, onChange }) => {
+export const FilterPanel: React.FC<FilterPanelProps> = ({ onReset, onChange }) => {
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
   const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
   const [selectedContentTypes, setSelectedContentTypes] = React.useState<string[]>([]);
@@ -174,6 +174,4 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onReset, onChange }) => {
       </Button>
     </div>
   );
-};
-
-export default FilterPanel; 
+}; 

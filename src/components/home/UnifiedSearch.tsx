@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { hasApiKey } from '@/services/ai';
+import { hasApiKey, getApiKey } from '@/services/ai';
 import { useToast } from '@/components/ui/use-toast';
 import { useNotes } from '@/contexts/NotesContext';
 import { searchNotes } from '@/services/search';
@@ -53,13 +53,16 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
     onSearchResults(null, true);
 
     try {
-      if (isAISearch && !hasApiKey()) {
-        toast({
-          title: "API Key Required",
-          description: "Please set your Gemini API key in AI Settings first.",
-          variant: "destructive"
-        });
-        return;
+      if (isAISearch) {
+        const apiKey = await getApiKey();
+        if (!apiKey) {
+          toast({
+            title: "API Key Required",
+            description: "Please set your Gemini API key in AI Settings first.",
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
       const searchFilters = {
