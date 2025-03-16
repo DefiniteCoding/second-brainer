@@ -1,10 +1,9 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { useNotes, Tag } from '@/contexts/NotesContext';
+import { useNotes, Tag, Note } from '@/contexts/NotesContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { X, Image, Link, Mic, Paperclip, Tag as TagIcon } from 'lucide-react';
@@ -13,9 +12,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 interface CaptureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  noteToEdit?: Note | null;
 }
 
-const CaptureDialog: React.FC<CaptureDialogProps> = ({ open, onOpenChange }) => {
+const CaptureDialog: React.FC<CaptureDialogProps> = ({ open, onOpenChange, noteToEdit }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [contentType, setContentType] = useState<'text' | 'image' | 'link' | 'audio'>('text');
@@ -23,9 +23,25 @@ const CaptureDialog: React.FC<CaptureDialogProps> = ({ open, onOpenChange }) => 
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [showTagsPopover, setShowTagsPopover] = useState(false);
   
-  const { addNote, tags } = useNotes();
+  const { addNote, tags, updateNote } = useNotes();
   const { toast } = useToast();
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (noteToEdit) {
+      setTitle(noteToEdit.title);
+      setContent(noteToEdit.content);
+      setContentType(noteToEdit.contentType as 'text' | 'image' | 'link' | 'audio');
+      setMediaUrl(noteToEdit.mediaUrl || '');
+      setSelectedTags(noteToEdit.tags);
+    } else {
+      setTitle('');
+      setContent('');
+      setContentType('text');
+      setMediaUrl('');
+      setSelectedTags([]);
+    }
+  }, [noteToEdit, open]);
 
   useEffect(() => {
     if (open && textAreaRef.current) {
@@ -57,13 +73,20 @@ const CaptureDialog: React.FC<CaptureDialogProps> = ({ open, onOpenChange }) => 
       mediaUrl: mediaUrl || undefined,
     };
 
-    addNote(noteData);
-    toast({
-      title: "Note captured!",
-      description: "Your note has been saved successfully.",
-    });
+    if (noteToEdit) {
+      updateNote(noteToEdit.id, noteData);
+      toast({
+        title: "Note updated!",
+        description: "Your note has been updated successfully.",
+      });
+    } else {
+      addNote(noteData);
+      toast({
+        title: "Note captured!",
+        description: "Your note has been saved successfully.",
+      });
+    }
     
-    // Reset form
     setTitle('');
     setContent('');
     setContentType('text');
@@ -73,7 +96,6 @@ const CaptureDialog: React.FC<CaptureDialogProps> = ({ open, onOpenChange }) => 
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Save on Ctrl+Enter or Command+Enter
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       handleSave();
@@ -131,8 +153,6 @@ const CaptureDialog: React.FC<CaptureDialogProps> = ({ open, onOpenChange }) => 
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    // In a real app, we'd upload this to storage and get a URL
-                    // For now, we'll create a local object URL
                     const objectUrl = URL.createObjectURL(file);
                     setMediaUrl(objectUrl);
                   }
@@ -193,7 +213,9 @@ const CaptureDialog: React.FC<CaptureDialogProps> = ({ open, onOpenChange }) => 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] p-0 gap-0 animate-slide-up">
         <DialogHeader className="p-6 pb-2">
-          <DialogTitle className="text-xl font-semibold">Capture Thought</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">
+            {noteToEdit ? 'Edit Note' : 'Capture Thought'}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="flex gap-2 px-6">
@@ -305,7 +327,7 @@ const CaptureDialog: React.FC<CaptureDialogProps> = ({ open, onOpenChange }) => 
                 Cancel
               </Button>
               <Button onClick={handleSave}>
-                Save Note
+                {noteToEdit ? 'Update Note' : 'Save Note'}
               </Button>
             </div>
           </div>
