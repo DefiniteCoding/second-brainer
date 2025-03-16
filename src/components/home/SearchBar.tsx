@@ -33,7 +33,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
   onNoteSelected
 }) => {
   const navigate = useNavigate();
-  const [showAISettings, setShowAISettings] = useState(false);
 
   return (
     <div className="relative mb-6">
@@ -88,8 +87,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => setShowAISettings(true)}>
-                  AI Settings
+                <DropdownMenuItem asChild>
+                  <div className="w-full">
+                    <AISettings />
+                  </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <div className="w-full">
@@ -115,10 +116,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
             </Button>
           </div>
         </div>
-      )}
-      
-      {showAISettings && (
-        <AISettings onSave={() => setShowAISettings(false)} />
       )}
     </div>
   );

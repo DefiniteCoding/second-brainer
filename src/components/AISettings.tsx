@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { hasApiKey, setApiKey, getApiKey } from '@/utils/aiService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Sparkles, Save, Key } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -31,12 +30,13 @@ const AISettings: React.FC<AISettingsProps> = ({ onSave }) => {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button 
-          variant="outline" 
-          className="flex items-center gap-2"
+          variant="ghost" 
+          size="sm" 
+          className="flex w-full items-center justify-start"
           title="AI Settings"
         >
-          <Sparkles className="h-4 w-4 text-purple-500" />
-          <span className="hidden sm:inline">AI Settings</span>
+          <Sparkles className="mr-2 h-4 w-4 text-purple-500" />
+          <span>AI Settings</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
