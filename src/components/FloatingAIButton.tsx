@@ -119,18 +119,18 @@ export const FloatingAIButton = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 right-6 z-[9999]">
       <Popover>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             size="icon"
             className={cn(
-              "rounded-full hover:scale-105 transition-transform bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 shadow-lg border-0",
+              "h-12 w-12 rounded-full hover:scale-105 transition-transform bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 shadow-lg border-0 text-white",
               isProcessing && "animate-pulse"
             )}
           >
-            <Sparkles className="h-4 w-4 text-indigo-500" />
+            <Sparkles className="h-5 w-5" />
           </Button>
         </PopoverTrigger>
         <PopoverContent 
