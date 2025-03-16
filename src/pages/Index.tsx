@@ -126,22 +126,26 @@ const Index = () => {
 
   return (
     <div className="animate-fade-in h-screen flex flex-col">
-      <HeaderSection />
+      <div className="px-4 py-2 border-b bg-background">
+        <HeaderSection />
+      </div>
 
-      <SearchBar 
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        advancedSearchActive={advancedSearchActive}
-        setAdvancedSearchActive={setAdvancedSearchActive}
-        onNoteSelected={handleNoteSelected}
-      />
+      <div className="px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <SearchBar 
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          advancedSearchActive={advancedSearchActive}
+          setAdvancedSearchActive={setAdvancedSearchActive}
+          onNoteSelected={handleNoteSelected}
+        />
+      </div>
 
       <ResizablePanelGroup 
         direction="horizontal" 
-        className="flex-1 min-h-0 rounded-lg border shadow-sm bg-card"
+        className="flex-1 min-h-0"
       >
-        <ResizablePanel defaultSize={30} minSize={20}>
-          <div className="h-full">
+        <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
+          <div className="h-full border-r">
             <NotesTabs
               activeTab={activeTab}
               setActiveTab={setActiveTab}
@@ -155,9 +159,9 @@ const Index = () => {
           </div>
         </ResizablePanel>
         
-        <ResizableHandle withHandle className="bg-muted/80 hover:bg-muted transition-colors" />
+        <ResizableHandle withHandle className="w-1.5 bg-muted/80 hover:bg-muted transition-colors" />
         
-        <ResizablePanel defaultSize={70}>
+        <ResizablePanel defaultSize={75} minSize={30}>
           <div className="h-full">
             <NoteDetailView
               selectedNote={selectedNote}
