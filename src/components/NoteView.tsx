@@ -4,7 +4,7 @@ import { Note, useNotes } from '@/contexts/NotesContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash, Network } from 'lucide-react';
+import { ArrowLeft, Edit, Trash, Network, Sparkles } from 'lucide-react';
 import RelatedNotes from './RelatedNotes';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,6 +13,7 @@ import ProgressiveSummary from './notes/ProgressiveSummary';
 import NoteContentRenderer from './notes/NoteContentRenderer';
 import BacklinksSection from './notes/BacklinksSection';
 import RelatedNotesSection from './notes/RelatedNotesSection';
+import AIEnhance from './notes/AIEnhance';
 
 interface NoteViewProps {
   note: Note;
@@ -25,6 +26,7 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
   const { parseNoteContent, getSuggestedConnections, findBacklinks, updateNote } = useNotes();
   const [showConnections, setShowConnections] = useState(false);
   const [progressiveMode, setProgressiveMode] = useState<string | null>(null);
+  const [showAIEnhance, setShowAIEnhance] = useState(false);
   
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleString();
@@ -78,6 +80,15 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex gap-1"
+              onClick={() => setShowAIEnhance(!showAIEnhance)}
+            >
+              <Sparkles className="h-4 w-4 text-purple-500" />
+              <span>AI Enhance</span>
+            </Button>
             <Dialog>
               <DialogTrigger asChild>
                 <Button 
@@ -86,7 +97,7 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
                   className="flex gap-1"
                   onClick={() => setShowConnections(true)}
                 >
-                  <Network className="h-4 w-4" />
+                  <Network className="h-4 w-4 text-blue-500" />
                   <span>Connections</span>
                 </Button>
               </DialogTrigger>
@@ -104,14 +115,14 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
               </DialogContent>
             </Dialog>
             <Button variant="ghost" size="icon" onClick={() => onEdit(note)}>
-              <Edit className="h-4 w-4" />
+              <Edit className="h-4 w-4 text-amber-500" />
             </Button>
             <Button variant="ghost" size="icon" onClick={() => onDelete(note.id)}>
-              <Trash className="h-4 w-4" />
+              <Trash className="h-4 w-4 text-red-500" />
             </Button>
           </div>
         </div>
-        <CardTitle className="text-xl">{note.title}</CardTitle>
+        <CardTitle className="text-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">{note.title}</CardTitle>
         <CardDescription>
           Created: {formatDate(note.createdAt)}
           {note.createdAt.getTime() !== note.updatedAt.getTime() && 
@@ -139,6 +150,8 @@ const NoteView: React.FC<NoteViewProps> = ({ note, onBack, onEdit, onDelete }) =
           processedContent={parsedContent} 
           progressiveMode={progressiveMode} 
         />
+        
+        {showAIEnhance && <AIEnhance note={note} />}
         
         <BacklinksSection backlinks={backlinks} />
         

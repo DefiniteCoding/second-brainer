@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import QuickCaptureButton from '@/components/QuickCaptureButton';
@@ -8,6 +9,7 @@ import TagManager from '@/components/TagManager';
 import DataExportImport from '@/components/DataExportImport';
 import NoteView from '@/components/NoteView';
 import SearchPanel from '@/components/SearchPanel';
+import AISettings from '@/components/AISettings';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Brain, Search, Network, Tag, ListFilter, Clock, Sparkles, BookOpen, Palette, Bookmark, PenTool, FileText } from 'lucide-react';
@@ -232,6 +234,7 @@ const Index = () => {
                 <span className="hidden sm:inline">Advanced</span>
               </Button>
               <TagManager />
+              <AISettings />
               <DataExportImport />
               <Button 
                 variant="outline" 
