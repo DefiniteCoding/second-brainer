@@ -62,9 +62,6 @@ const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
     return null;
   }, [note.content, processedContent, progressiveMode]);
   
-  // Check if processedContent is an array of React elements (for content with note mentions)
-  const isProcessedContentArray = Array.isArray(processedContent);
-
   const markdownComponents = {
     code({node, inline, className, children, ...props}) {
       const match = /language-(\w+)/.exec(className || '');
@@ -148,30 +145,29 @@ const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
     )
   };
   
-  return (
-    <div className="prose prose-sm md:prose-base lg:prose-lg max-w-none dark:prose-invert prose-headings:text-primary prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground">
-      {summarizedContent ? (
-        <div className="p-4 border rounded-md bg-muted/50">
-          <ReactMarkdown 
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex]}
-            components={markdownComponents}
-          >
-            {summarizedContent}
-          </ReactMarkdown>
-        </div>
-      ) : isProcessedContentArray ? (
-        // If it's an array with mentions, render it directly
-        <div>{processedContent}</div>
-      ) : (
-        // Otherwise, render it as markdown with enhanced components
+  const renderContent = (content: React.ReactNode) => {
+    if (typeof content === 'string') {
+      return (
         <ReactMarkdown 
           remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[rehypeKatex]}
           components={markdownComponents}
         >
-          {typeof processedContent === 'string' ? processedContent : note.content}
+          {content}
         </ReactMarkdown>
+      );
+    }
+    return content;
+  };
+  
+  return (
+    <div className="prose prose-sm md:prose-base lg:prose-lg max-w-none dark:prose-invert prose-headings:text-primary prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground">
+      {summarizedContent ? (
+        <div className="p-4 border rounded-md bg-muted/50">
+          {renderContent(summarizedContent)}
+        </div>
+      ) : (
+        renderContent(processedContent)
       )}
     </div>
   );

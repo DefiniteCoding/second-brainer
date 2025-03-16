@@ -357,8 +357,17 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       segments.push(content.substring(lastIndex));
     }
     
+    // If there are no mentions, return the raw content for markdown processing
+    if (segments.length === 0) {
+      return {
+        parsedContent: content,
+        mentionedNoteIds
+      };
+    }
+    
+    // If there are mentions, join the segments with proper spacing
     return {
-      parsedContent: segments.length > 0 ? segments : content,
+      parsedContent: segments.join(''),
       mentionedNoteIds
     };
   };

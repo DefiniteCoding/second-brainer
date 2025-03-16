@@ -125,7 +125,7 @@ const Index = () => {
   };
 
   return (
-    <div className="animate-fade-in h-screen flex flex-col">
+    <div className="animate-fade-in container mx-auto max-w-7xl h-screen flex flex-col">
       <div className="px-4 py-2 border-b bg-background">
         <HeaderSection />
       </div>
@@ -142,10 +142,10 @@ const Index = () => {
 
       <ResizablePanelGroup 
         direction="horizontal" 
-        className="flex-1 min-h-0"
+        className="flex-1 min-h-0 rounded-lg border my-4"
       >
         <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
-          <div className="h-full border-r">
+          <div className="h-full">
             <NotesTabs
               activeTab={activeTab}
               setActiveTab={setActiveTab}
