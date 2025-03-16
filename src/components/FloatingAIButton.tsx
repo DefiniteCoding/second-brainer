@@ -41,20 +41,25 @@ export const FloatingAIButton = () => {
       // Process all notes in parallel
       await Promise.all(notes.map(async (note) => {
         try {
-          // Extract keywords and find connections in parallel for each note
-          const [keywordsResponse, relatedNotesResponse] = await Promise.all([
+          // Extract keywords and find related concepts in parallel for each note
+          const [keywordsResponse, relatedConceptsResponse] = await Promise.all([
             extractKeywords(note.content),
             findRelatedNotes(note.content)
           ]);
 
           const updates: Partial<typeof note> = {};
 
-          if (keywordsResponse.success && keywordsResponse.data) {
-            updates.tags = keywordsResponse.data;
+          if (keywordsResponse.success && keywordsResponse.data?.keywords) {
+            updates.tags = keywordsResponse.data.keywords.map(keyword => ({
+              id: crypto.randomUUID(),
+              name: keyword,
+              color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+            }));
           }
 
-          if (relatedNotesResponse.success && relatedNotesResponse.data) {
-            updates.relationships = relatedNotesResponse.data;
+          if (relatedConceptsResponse.success && relatedConceptsResponse.data?.concepts) {
+            // Store concepts for later relationship building
+            updates.concepts = relatedConceptsResponse.data.concepts;
           }
 
           // Only update if we have changes
@@ -69,6 +74,32 @@ export const FloatingAIButton = () => {
         }
       }));
 
+      // After processing all notes, find relationships based on concept similarity
+      const notesWithConcepts = notes.map(note => ({
+        ...note,
+        concepts: note.concepts || []
+      }));
+
+      for (const note of notesWithConcepts) {
+        if (!note.concepts?.length) continue;
+
+        const relatedNotes = notesWithConcepts
+          .filter(other => other.id !== note.id)
+          .map(other => ({
+            id: other.id,
+            similarity: calculateConceptSimilarity(note.concepts!, other.concepts || [])
+          }))
+          .filter(relation => relation.similarity > 0.3) // Only keep strong relationships
+          .map(relation => relation.id);
+
+        if (relatedNotes.length > 0) {
+          await updateNote(note.id, {
+            ...note,
+            relationships: relatedNotes
+          });
+        }
+      }
+
       toast({
         title: "Analysis Complete",
         description: `Processed ${notes.length} notes and updated their tags and connections.`,
@@ -82,6 +113,17 @@ export const FloatingAIButton = () => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // Helper function to calculate similarity between concept arrays
+  const calculateConceptSimilarity = (concepts1: string[], concepts2: string[]): number => {
+    const set1 = new Set(concepts1.map(c => c.toLowerCase()));
+    const set2 = new Set(concepts2.map(c => c.toLowerCase()));
+    
+    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
+    
+    return intersection.size / union.size;
   };
 
   const handleSuggestTitles = async () => {
