@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { FloatingFormatToolbar } from '@/components/notes/FloatingFormatToolbar';
 import { motion } from 'framer-motion';
 import { ChevronLeft, X, Send, ImageIcon, LinkIcon, Mic, Loader2 } from 'lucide-react';
-import { readFileAsDataUrl } from '@/lib/fileUpload';
+import { uploadFile } from '@/lib/fileUpload';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 
 interface NoteEditorProps {
@@ -126,7 +126,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
     try {
       setIsUploading(true);
-      const dataUrl = await readFileAsDataUrl(file);
+      const dataUrl = await uploadFile(file);
       const imageMarkdown = `![${file.name}](${dataUrl})`;
       
       const textarea = textareaRef.current;
