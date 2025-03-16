@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sparkles, Tag, Link2, Text } from 'lucide-react';
@@ -8,9 +8,22 @@ import { useToast } from '@/components/ui/use-toast';
 import { extractKeywords, findRelatedNotes, generateSummary } from '@/services/ai';
 
 export const FloatingAIButton = () => {
+  console.log('FloatingAIButton rendering');
+  
+  useEffect(() => {
+    console.log('FloatingAIButton mounted');
+    return () => {
+      console.log('FloatingAIButton unmounted');
+    };
+  }, []);
+
   const [isProcessing, setIsProcessing] = useState(false);
   const { notes, updateNote } = useNotes();
   const { toast } = useToast();
+
+  useEffect(() => {
+    console.log('Notes from context:', notes);
+  }, [notes]);
 
   const handleAnalyzeAllNotes = async () => {
     if (!notes.length) {
@@ -119,18 +132,29 @@ export const FloatingAIButton = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999]">
+    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999 }} className="!fixed !bottom-6 !right-6 !z-[9999]">
       <Popover>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             size="icon"
+            style={{ 
+              height: '48px', 
+              width: '48px',
+              borderRadius: '9999px',
+              background: 'linear-gradient(to right, rgb(99, 102, 241), rgb(168, 85, 247))',
+              border: 'none',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              color: 'white',
+              transform: 'scale(1)',
+              transition: 'transform 0.2s'
+            }}
             className={cn(
-              "h-12 w-12 rounded-full hover:scale-105 transition-transform bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 shadow-lg border-0 text-white",
-              isProcessing && "animate-pulse"
+              "!h-12 !w-12 !rounded-full hover:!scale-105 !transition-transform !bg-gradient-to-r !from-indigo-500 !to-purple-500 hover:!from-indigo-600 hover:!to-purple-600 !shadow-lg !border-0 !text-white",
+              isProcessing && "!animate-pulse"
             )}
           >
-            <Sparkles className="h-5 w-5" />
+            <Sparkles className="!h-5 !w-5" />
           </Button>
         </PopoverTrigger>
         <PopoverContent 
