@@ -1,45 +1,52 @@
 import { GeminiConfig } from '@/types/ai.types';
-import { getApiKey } from '@/services/ai';
 
-const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+let geminiApiKey = 'AIzaSyDzeU0MahoC4Y4EM6NxjinKva7cv0AtU-g';
+
+export const setApiKey = (key: string): void => {
+  geminiApiKey = key;
+  localStorage.setItem('gemini-api-key', key);
+};
+
+export const getApiKey = (): string => {
+  return geminiApiKey;
+};
+
+export const hasApiKey = (): boolean => {
+  return !!geminiApiKey;
+};
+
+export const DEFAULT_CONFIG: GeminiConfig = {
+  temperature: 0.2,
+  topK: 40,
+  topP: 0.95,
+  maxOutputTokens: 800,
+};
 
 export const callGeminiApi = async (prompt: string, config: Partial<GeminiConfig> = {}): Promise<any> => {
-  const apiKey = await getApiKey();
-  if (!apiKey) {
-    throw new Error('Gemini API key not found. Please set up your API key first.');
+  if (!geminiApiKey) {
+    throw new Error('No API key found. Please set your Gemini API key in Settings.');
   }
 
-  const finalConfig = {
-    temperature: 0.7,
-    topK: 40,
-    topP: 0.95,
-    ...config
-  };
-
-  const response = await fetch(GEMINI_API_ENDPOINT, {
+  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey
+      'x-goog-api-key': geminiApiKey
     },
     body: JSON.stringify({
-      contents: [{
-        parts: [{
-          text: prompt
-        }]
-      }],
+      contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: finalConfig.temperature,
-        topK: finalConfig.topK,
-        topP: finalConfig.topP
+        ...DEFAULT_CONFIG,
+        ...config
       }
     })
   });
 
+  const data = await response.json();
+  
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Failed to call Gemini API');
+    throw new Error(data.error?.message || 'Failed to call Gemini API');
   }
 
-  return response.json();
+  return data;
 }; 

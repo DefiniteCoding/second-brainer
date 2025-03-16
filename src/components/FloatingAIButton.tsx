@@ -119,53 +119,50 @@ export const FloatingAIButton = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999]">
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="icon"
-            className={cn(
-              "h-12 w-12 rounded-full hover:scale-105 transition-transform bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 shadow-lg border-0 text-white",
-              isProcessing && "animate-pulse"
-            )}
-          >
-            <Sparkles className="h-5 w-5" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent 
-          align="end" 
-          className="w-72 p-2"
-          sideOffset={5}
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className={cn(
+            "rounded-full hover:scale-105 transition-transform fixed bottom-6 right-6 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 z-50 shadow-lg",
+            isProcessing && "animate-pulse"
+          )}
         >
-          <div className="space-y-2">
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 text-sm"
-              onClick={handleAnalyzeAllNotes}
-              disabled={isProcessing}
-            >
-              <div className="flex gap-2 items-center">
-                <div className="flex -space-x-1">
-                  <Tag className="h-4 w-4 text-blue-500" />
-                  <Link2 className="h-4 w-4 text-purple-500" />
-                </div>
+          <Sparkles className="h-4 w-4 text-indigo-500" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent 
+        align="end" 
+        className="w-72 p-2"
+      >
+        <div className="space-y-2">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 text-sm"
+            onClick={handleAnalyzeAllNotes}
+            disabled={isProcessing}
+          >
+            <div className="flex gap-2 items-center">
+              <div className="flex -space-x-1">
+                <Tag className="h-4 w-4 text-blue-500" />
+                <Link2 className="h-4 w-4 text-purple-500" />
               </div>
-              Analyze all notes (tags & connections)
-            </Button>
-            
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 text-sm"
-              onClick={handleSuggestTitles}
-              disabled={isProcessing}
-            >
-              <Text className="h-4 w-4 text-green-500" />
-              Generate titles for generic notes
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
-    </div>
+            </div>
+            Analyze all notes (tags & connections)
+          </Button>
+          
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 text-sm"
+            onClick={handleSuggestTitles}
+            disabled={isProcessing}
+          >
+            <Text className="h-4 w-4 text-green-500" />
+            Generate titles for generic notes
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }; 
