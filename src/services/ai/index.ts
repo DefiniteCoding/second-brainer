@@ -1,13 +1,8 @@
-import { 
-  generateSummary, 
-  extractKeywords, 
-  findRelatedNotes, 
-  naturalLanguageSearch,
-  setApiKey,
-  hasApiKey 
-} from '@/services/ai';
 import { Note } from '@/contexts/NotesContext';
 import { encryptApiKey, decryptApiKey } from '@/lib/encryption';
+import { generateSummary } from './summaryService';
+import { extractKeywords } from './keywordService';
+import { findRelatedNotes } from './relationService';
 
 const GEMINI_API_KEY_STORAGE_KEY = 'gemini_api_key_encrypted';
 
@@ -47,14 +42,17 @@ export const naturalLanguageSearch = async (query: string, notes: Note[]): Promi
       throw new Error('API key not found');
     }
 
-    // Your existing naturalLanguageSearch implementation using the decrypted apiKey
-    // ... rest of the implementation
+    // TODO: Implement natural language search using Gemini API
+    // For now, return a simple text match
+    const searchTerms = query.toLowerCase().split(' ');
+    return notes.filter(note => {
+      const content = (note.title + ' ' + note.content).toLowerCase();
+      return searchTerms.every(term => content.includes(term));
+    });
   } catch (error) {
-    console.error('Natural language search error:', error);
-    throw error;
+    console.error('Error performing natural language search:', error);
+    return [];
   }
 };
 
-export { generateSummary } from './summaryService';
-export { extractKeywords } from './keywordService';
-export { findRelatedNotes } from './relationService'; 
+export { generateSummary, extractKeywords, findRelatedNotes }; 
