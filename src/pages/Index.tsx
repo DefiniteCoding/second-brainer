@@ -20,6 +20,8 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [searchResults, setSearchResults] = useState<Note[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   const { notes, deleteNote, getNoteById, getRecentlyViewedNotes, addToRecentViews } = useNotes();
   const { toast } = useToast();
@@ -152,15 +154,17 @@ const Index = () => {
     setIsCreating(false);
   };
 
+  const handleSearchResults = (results: Note[] | null, searching: boolean) => {
+    setSearchResults(results);
+    setIsSearching(searching);
+  };
+
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <SearchBar 
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        advancedSearchActive={advancedSearchActive}
-        setAdvancedSearchActive={setAdvancedSearchActive}
         onNoteSelected={handleNoteSelected}
         onAddNote={handleAddNote}
+        onSearchResults={handleSearchResults}
       />
 
       <div className="flex-1 flex overflow-hidden relative">
@@ -178,11 +182,11 @@ const Index = () => {
               <NotesTabs
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
-                filteredNotes={filteredNotes}
+                filteredNotes={searchResults || filteredNotes}
                 recentlyViewedNotes={recentlyViewedNotes}
                 selectedNoteId={selectedNote?.id}
                 onNoteClick={handleNoteSelected}
-                isLoading={isLoading}
+                isLoading={isLoading || isSearching}
                 onAddNote={handleAddNote}
               />
             </div>

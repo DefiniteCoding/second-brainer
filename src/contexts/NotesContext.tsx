@@ -63,42 +63,67 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [dbInitialized, setDbInitialized] = useState(false);
 
   useEffect(() => {
-    metadataDB.init();
-    setDbInitialized(true);
+    console.log('Initializing metadataDB...');
+    try {
+      metadataDB.init();
+      setDbInitialized(true);
+      console.log('metadataDB initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize metadataDB:', error);
+    }
   }, []);
 
   useEffect(() => {
-    const savedTags = localStorage.getItem(TAGS_STORAGE_KEY);
-    if (savedTags) {
-      try {
-        setTags(JSON.parse(savedTags));
-      } catch (error) {
-        console.error('Failed to parse tags from localStorage:', error);
+    console.log('Loading initial data...');
+    try {
+      const savedTags = localStorage.getItem(TAGS_STORAGE_KEY);
+      if (savedTags) {
+        try {
+          const parsedTags = JSON.parse(savedTags);
+          console.log('Loaded tags:', parsedTags);
+          setTags(parsedTags);
+        } catch (error) {
+          console.error('Failed to parse tags from localStorage:', error);
+          setTags(DEFAULT_TAGS);
+        }
+      } else {
+        console.log('No saved tags found, using default tags');
         setTags(DEFAULT_TAGS);
       }
-    } else {
-      setTags(DEFAULT_TAGS);
-    }
-    
-    const loadedNotes = loadNotesFromLocalStorage(tags);
-    setNotes(loadedNotes);
-    
-    const savedRecentViews = localStorage.getItem(RECENT_VIEWS_KEY);
-    if (savedRecentViews) {
-      try {
-        setRecentViews(JSON.parse(savedRecentViews));
-      } catch (error) {
-        console.error('Failed to parse recent views from localStorage:', error);
+      
+      const loadedNotes = loadNotesFromLocalStorage(tags);
+      console.log('Loaded notes:', loadedNotes);
+      setNotes(loadedNotes);
+      
+      const savedRecentViews = localStorage.getItem(RECENT_VIEWS_KEY);
+      if (savedRecentViews) {
+        try {
+          const parsedRecentViews = JSON.parse(savedRecentViews);
+          console.log('Loaded recent views:', parsedRecentViews);
+          setRecentViews(parsedRecentViews);
+        } catch (error) {
+          console.error('Failed to parse recent views from localStorage:', error);
+        }
       }
+    } catch (error) {
+      console.error('Error during initial data load:', error);
     }
   }, []);
 
   useEffect(() => {
     if (notes.length > 0) {
-      saveNotesToLocalStorage(notes, tags);
-      
-      if (dbInitialized) {
-        metadataDB.storeMetadata(notes);
+      console.log('Saving notes to localStorage...');
+      try {
+        saveNotesToLocalStorage(notes, tags);
+        console.log('Notes saved successfully');
+        
+        if (dbInitialized) {
+          console.log('Storing metadata...');
+          metadataDB.storeMetadata(notes);
+          console.log('Metadata stored successfully');
+        }
+      } catch (error) {
+        console.error('Error saving notes:', error);
       }
     }
   }, [notes, tags, dbInitialized]);
