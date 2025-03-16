@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { Note, useNotes } from '@/contexts/NotesContext';
+import { Note } from '@/contexts/NotesContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Lightbulb, Tag, Check, X, RotateCcw, Link } from 'lucide-react';
+import { Sparkles, Lightbulb, Tag, Check, X, RotateCcw, Link, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { setApiKey, getApiKey, hasApiKey } from '@/services/api/geminiApi';
-import { generateSummary } from '@/services/ai/summaryService';
-import { extractKeywords as getKeywords } from '@/services/ai/keywordService';
-import { findRelatedNotes as getRelatedNotes } from '@/services/ai/relationService';
+import { hasApiKey } from '@/services/ai';
+import { SummaryOptions } from '@/types/ai.types';
+import * as aiService from '@/services/ai';
 
 interface AIEnhanceProps {
   note: Note;
@@ -37,7 +36,7 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
 
     setLoading(true);
     try {
-      const result = await generateSummary(note.content);
+      const result = await aiService.generateSummary(note.content);
       if (result.error) {
         toast({
           title: "Error",
@@ -70,7 +69,7 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
 
     setLoading(true);
     try {
-      const result = await getKeywords(note.content);
+      const result = await aiService.extractKeywords(note.content);
       if (result.error) {
         toast({
           title: "Error",
@@ -103,7 +102,7 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
 
     setLoading(true);
     try {
-      const result = await getRelatedNotes(note, notes);
+      const result = await aiService.findRelatedNotes(note, notes);
       if (result.error) {
         toast({
           title: "Error",

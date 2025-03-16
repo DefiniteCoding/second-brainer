@@ -318,22 +318,49 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       .map(item => item.note);
   };
 
-  const parseNoteContent = (content: string) => {
-    const mentionRegex = /\[\[([^\]]+)\]\]/g;
+  const parseNoteContent = (content: string): { parsedContent: React.ReactNode, mentionedNoteIds: string[] } => {
+    if (!content) return { parsedContent: '', mentionedNoteIds: [] };
+    
     const mentionedNoteIds: string[] = [];
-    let parsedContent = content;
-
-    // Replace mentions with links and collect mentioned note IDs
-    parsedContent = parsedContent.replace(mentionRegex, (match, noteName) => {
-      const mentionedNote = notes.find(note => note.title === noteName);
+    const segments: React.ReactNode[] = [];
+    
+    const regex = /\[\[(.*?)\]\]/g;
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = regex.exec(content)) !== null) {
+      const mentionTitle = match[1].trim();
+      const matchStart = match.index;
+      const matchEnd = regex.lastIndex;
+      
+      if (matchStart > lastIndex) {
+        segments.push(content.substring(lastIndex, matchStart));
+      }
+      
+      const mentionedNote = notes.find(n => n.title.toLowerCase() === mentionTitle.toLowerCase());
+      
       if (mentionedNote) {
         mentionedNoteIds.push(mentionedNote.id);
-        return `[${noteName}](#/note/${mentionedNote.id})`;
+        segments.push(
+          <span key={`mention-${segments.length}`} className="text-primary font-medium cursor-pointer hover:underline">
+            {mentionTitle}
+          </span>
+        );
+      } else {
+        segments.push(`[[${mentionTitle}]]`);
       }
-      return noteName;
-    });
-
-    return { parsedContent, mentionedNoteIds };
+      
+      lastIndex = matchEnd;
+    }
+    
+    if (lastIndex < content.length) {
+      segments.push(content.substring(lastIndex));
+    }
+    
+    return {
+      parsedContent: segments.length > 0 ? segments : content,
+      mentionedNoteIds
+    };
   };
 
   const searchNotes = (filters: SearchFilter): Note[] => {
@@ -529,7 +556,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         getRecentlyViewedNotes,
         addToRecentViews,
         exportNotes,
-        importNotes,
+        importNotes
       }}
     >
       {children}
@@ -544,5 +571,3 @@ export const useNotes = () => {
   }
   return context;
 };
-
-export default NotesProvider;
