@@ -149,7 +149,7 @@ const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
   };
   
   return (
-    <div className="prose prose-sm md:prose-base lg:prose-lg max-w-none dark:prose-invert prose-headings:text-primary prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground">
+    <div className="prose prose-sm md:prose-base lg:prose-lg dark:prose-invert max-w-none">
       {summarizedContent ? (
         <div className="p-4 border rounded-md bg-muted/50">
           <ReactMarkdown 
@@ -161,10 +161,8 @@ const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
           </ReactMarkdown>
         </div>
       ) : isProcessedContentArray ? (
-        // If it's an array with mentions, render it directly
         <div>{processedContent}</div>
       ) : (
-        // Otherwise, render it as markdown with enhanced components
         <ReactMarkdown 
           remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[rehypeKatex]}

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import { fontFamily } from "tailwindcss/defaultTheme";
 
 export default {
 	darkMode: ["class"],
@@ -76,65 +77,162 @@ export default {
 				DEFAULT: {
 					css: {
 						maxWidth: 'none',
-						color: 'hsl(var(--foreground))',
-						a: {
-							color: 'hsl(var(--primary))',
-							'&:hover': {
-								color: 'hsl(var(--primary))',
-							},
-						},
+						color: 'var(--tw-prose-body)',
 						'[class~="lead"]': {
-							color: 'hsl(var(--foreground))',
+							color: 'var(--tw-prose-lead)'
+						},
+						a: {
+							color: 'var(--tw-prose-links)',
+							textDecoration: 'underline',
+							fontWeight: '500'
 						},
 						strong: {
-							color: 'hsl(var(--foreground))',
+							color: 'var(--tw-prose-bold)',
+							fontWeight: '600'
 						},
-						'ol > li::marker': {
-							color: 'hsl(var(--foreground))',
+						'ol[type="A"]': {
+							'--list-counter-style': 'upper-alpha'
 						},
-						'ul > li::marker': {
-							color: 'hsl(var(--foreground))',
+						'ol[type="a"]': {
+							'--list-counter-style': 'lower-alpha'
+						},
+						'ol[type="A" s]': {
+							'--list-counter-style': 'upper-alpha'
+						},
+						'ol[type="a" s]': {
+							'--list-counter-style': 'lower-alpha'
+						},
+						'ol[type="I"]': {
+							'--list-counter-style': 'upper-roman'
+						},
+						'ol[type="i"]': {
+							'--list-counter-style': 'lower-roman'
+						},
+						'ol[type="I" s]': {
+							'--list-counter-style': 'upper-roman'
+						},
+						'ol[type="i" s]': {
+							'--list-counter-style': 'lower-roman'
+						},
+						'ol[type="1"]': {
+							'--list-counter-style': 'decimal'
+						},
+						'ol > li': {
+							position: 'relative'
+						},
+						'ol > li::before': {
+							content: 'counter(list-item, var(--list-counter-style, decimal)) "."',
+							position: 'absolute',
+							fontWeight: '400',
+							color: 'var(--tw-prose-counters)'
+						},
+						'ul > li': {
+							position: 'relative'
+						},
+						'ul > li::before': {
+							content: '""',
+							position: 'absolute',
+							backgroundColor: 'var(--tw-prose-bullets)',
+							borderRadius: '50%'
 						},
 						hr: {
-							borderColor: 'hsl(var(--border))',
+							borderColor: 'var(--tw-prose-hr)',
+							borderTopWidth: 1
 						},
 						blockquote: {
-							borderLeftColor: 'hsl(var(--border))',
-							color: 'hsl(var(--foreground))',
+							fontWeight: '500',
+							fontStyle: 'italic',
+							color: 'var(--tw-prose-quotes)',
+							borderLeftWidth: '0.25rem',
+							borderLeftColor: 'var(--tw-prose-quote-borders)',
+							quotes: '"\\201C""\\201D""\\2018""\\2019"'
+						},
+						'blockquote p:first-of-type::before': {
+							content: 'open-quote'
+						},
+						'blockquote p:last-of-type::after': {
+							content: 'close-quote'
 						},
 						h1: {
-							color: 'hsl(var(--foreground))',
+							color: 'var(--tw-prose-headings)',
+							fontWeight: '800'
+						},
+						'h1 strong': {
+							fontWeight: '900',
+							color: 'inherit'
 						},
 						h2: {
-							color: 'hsl(var(--foreground))',
+							color: 'var(--tw-prose-headings)',
+							fontWeight: '700'
+						},
+						'h2 strong': {
+							fontWeight: '800',
+							color: 'inherit'
 						},
 						h3: {
-							color: 'hsl(var(--foreground))',
+							color: 'var(--tw-prose-headings)',
+							fontWeight: '600'
+						},
+						'h3 strong': {
+							fontWeight: '700',
+							color: 'inherit'
 						},
 						h4: {
-							color: 'hsl(var(--foreground))',
+							color: 'var(--tw-prose-headings)',
+							fontWeight: '600'
 						},
-						'figure figcaption': {
-							color: 'hsl(var(--muted-foreground))',
+						'h4 strong': {
+							fontWeight: '700',
+							color: 'inherit'
 						},
 						code: {
-							color: 'hsl(var(--foreground))',
+							color: 'var(--tw-prose-code)',
+							fontWeight: '600'
+						},
+						'code::before': {
+							content: '"`"'
+						},
+						'code::after': {
+							content: '"`"'
 						},
 						'a code': {
-							color: 'hsl(var(--primary))',
+							color: 'inherit'
 						},
-						pre: {
-							backgroundColor: 'hsl(var(--muted))',
-							color: 'hsl(var(--foreground))',
+						'h1 code': {
+							color: 'inherit'
 						},
-						thead: {
-							color: 'hsl(var(--foreground))',
-							borderBottomColor: 'hsl(var(--border))',
+						'h2 code': {
+							color: 'inherit'
+						},
+						'h3 code': {
+							color: 'inherit'
+						},
+						'h4 code': {
+							color: 'inherit'
+						},
+						'blockquote code': {
+							color: 'inherit'
+						},
+						'thead': {
+							color: 'var(--tw-prose-headings)',
+							fontWeight: '600',
+							borderBottomWidth: '1px',
+							borderBottomColor: 'var(--tw-prose-th-borders)'
+						},
+						'thead th': {
+							verticalAlign: 'bottom'
 						},
 						'tbody tr': {
-							borderBottomColor: 'hsl(var(--border))',
+							borderBottomWidth: '1px',
+							borderBottomColor: 'var(--tw-prose-td-borders)'
 						},
-					},
+						'tbody tr:last-child': {
+							borderBottomWidth: '0'
+						},
+						'tbody td': {
+							verticalAlign: 'baseline'
+						}
+					}
 				},
 			},
 			borderRadius: {
