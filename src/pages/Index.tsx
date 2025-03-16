@@ -1,19 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import CaptureDialog from '@/components/CaptureDialog';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import HeaderSection from '@/components/home/HeaderSection';
 import SearchBar from '@/components/home/SearchBar';
 import NotesTabs from '@/components/home/NotesTabs';
 import NoteDetailView from '@/components/home/NoteDetailView';
 
 const Index = () => {
-  const [captureDialogOpen, setCaptureDialogOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [noteToEdit, setNoteToEdit] = useState<Note | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,7 +34,6 @@ const Index = () => {
         setSelectedNote(note);
         addToRecentViews(noteId);
       } else {
-        // Handle case when note is not found
         toast({
           title: "Note not found",
           description: `Could not find a note with ID: ${noteId}`,
@@ -50,22 +45,6 @@ const Index = () => {
     setIsLoading(false);
   }, [location.search, getNoteById, addToRecentViews, navigate, toast]);
 
-  // Set up keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Quick capture shortcut
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        openCaptureDialog();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
   // Filter notes based on search term
   const filteredNotes = searchTerm
     ? notes.filter(note => 
@@ -76,21 +55,6 @@ const Index = () => {
     : notes;
 
   const recentlyViewedNotes = getRecentlyViewedNotes();
-
-  // Centralized dialog opening logic with proper state management
-  const openCaptureDialog = (noteToEdit?: Note) => {
-    if (noteToEdit) {
-      setNoteToEdit(noteToEdit);
-    } else {
-      setNoteToEdit(null);
-    }
-    setCaptureDialogOpen(true);
-  };
-
-  const handleCaptureDialogClose = () => {
-    setNoteToEdit(null);
-    setCaptureDialogOpen(false);
-  };
 
   const handleDeleteNote = () => {
     if (noteToDelete) {
@@ -134,10 +98,10 @@ const Index = () => {
         onNoteSelected={handleNoteSelected}
       />
 
-      <div className="flex-1">
+      <div className="flex-1 flex">
         <ResizablePanelGroup 
           direction="horizontal" 
-          className="h-full"
+          className="h-full w-full"
         >
           <ResizablePanel 
             defaultSize={30} 
@@ -154,7 +118,7 @@ const Index = () => {
                 selectedNoteId={selectedNote?.id}
                 onNoteClick={handleNoteSelected}
                 isLoading={isLoading}
-                onAddNote={() => openCaptureDialog()}
+                onAddNote={() => setSelectedNote(null)}
               />
             </div>
           </ResizablePanel>
@@ -170,19 +134,12 @@ const Index = () => {
                 selectedNote={selectedNote}
                 isLoading={isLoading}
                 onBack={handleBackFromNote}
-                onEdit={() => selectedNote && openCaptureDialog(selectedNote)}
                 onDelete={handleOpenDeleteDialog}
               />
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
-
-      <CaptureDialog
-        open={captureDialogOpen}
-        onOpenChange={handleCaptureDialogClose}
-        noteToEdit={noteToEdit}
-      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

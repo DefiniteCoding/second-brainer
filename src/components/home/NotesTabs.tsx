@@ -80,10 +80,10 @@ const NotesTabs: React.FC<NotesTabsProps> = (props) => {
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
-      <div className="space-y-4 p-4">
+      <div className="p-4">
         <Button 
           onClick={onAddNote}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 mb-4"
         >
           <Plus className="h-4 w-4" />
           Add Note
