@@ -23,14 +23,6 @@ export interface Note {
   mentions?: string[]; // IDs of mentioned notes
 }
 
-export type SearchFilter = {
-  tagIds?: string[];
-  startDate?: Date;
-  endDate?: Date;
-  contentTypes?: ('text' | 'image' | 'link' | 'audio' | 'video')[];
-  query?: string;
-}
-
 interface NotesContextType {
   notes: Note[];
   addNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => string;
@@ -45,8 +37,6 @@ interface NotesContextType {
   findBacklinks: (noteId: string) => Note[];
   getSuggestedConnections: (noteId: string) => Note[];
   parseNoteContent: (content: string) => { parsedContent: React.ReactNode, mentionedNoteIds: string[] };
-  searchNotes: (filters: SearchFilter) => Note[];
-  parseNaturalLanguageQuery: (query: string) => SearchFilter;
   getRecentlyViewedNotes: () => Note[];
   addToRecentViews: (noteId: string) => void;
   exportNotes: () => void;
@@ -372,151 +362,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   };
 
-  const searchNotes = (filters: SearchFilter): Note[] => {
-    if (dbInitialized && filters) {
-      const criteria: any = {};
-      
-      if (filters.tagIds && filters.tagIds.length > 0) {
-        criteria.tagIds = filters.tagIds;
-      }
-      
-      if (filters.contentTypes && filters.contentTypes.length > 0) {
-        criteria.contentType = filters.contentTypes;
-      }
-      
-      if (filters.startDate) {
-        criteria.fromDate = filters.startDate.toISOString();
-      }
-      
-      if (filters.endDate) {
-        criteria.toDate = filters.endDate.toISOString();
-      }
-      
-      if (filters.query) {
-        criteria.searchText = filters.query;
-      }
-      
-      const matchingIds = metadataDB.queryNotes(criteria);
-      
-      if (matchingIds.length > 0) {
-        return notes.filter(note => matchingIds.includes(note.id));
-      }
-    }
-    
-    return notes.filter(note => {
-      if (filters.tagIds && filters.tagIds.length > 0) {
-        if (!note.tags.some(tag => filters.tagIds?.includes(tag.id))) {
-          return false;
-        }
-      }
-      
-      if (filters.startDate && note.createdAt < filters.startDate) {
-        return false;
-      }
-      
-      if (filters.endDate) {
-        const endOfDay = new Date(filters.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        if (note.createdAt > endOfDay) {
-          return false;
-        }
-      }
-      
-      if (filters.contentTypes && filters.contentTypes.length > 0) {
-        if (!filters.contentTypes.includes(note.contentType)) {
-          return false;
-        }
-      }
-      
-      if (filters.query && filters.query.trim() !== '') {
-        const query = filters.query.toLowerCase();
-        return (
-          note.title.toLowerCase().includes(query) ||
-          note.content.toLowerCase().includes(query) ||
-          note.tags.some(tag => tag.name.toLowerCase().includes(query))
-        );
-      }
-      
-      return true;
-    });
-  };
-
-  const parseNaturalLanguageQuery = (query: string): SearchFilter => {
-    const filters: SearchFilter = {};
-    const lowerQuery = query.toLowerCase();
-    
-    if (lowerQuery.includes('today')) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      filters.startDate = today;
-      filters.endDate = new Date();
-    } else if (lowerQuery.includes('yesterday')) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      yesterday.setHours(0, 0, 0, 0);
-      filters.startDate = yesterday;
-      const endOfYesterday = new Date(yesterday);
-      endOfYesterday.setHours(23, 59, 59, 999);
-      filters.endDate = endOfYesterday;
-    } else if (lowerQuery.includes('last week')) {
-      const lastWeek = new Date();
-      lastWeek.setDate(lastWeek.getDate() - 7);
-      filters.startDate = lastWeek;
-    } else if (lowerQuery.includes('last month')) {
-      const lastMonth = new Date();
-      lastMonth.setMonth(lastMonth.getMonth() - 1);
-      filters.startDate = lastMonth;
-    }
-    
-    const contentTypes: ('text' | 'image' | 'link' | 'audio' | 'video')[] = [];
-    if (lowerQuery.includes('image') || lowerQuery.includes('photo') || lowerQuery.includes('picture')) {
-      contentTypes.push('image');
-    }
-    if (lowerQuery.includes('link') || lowerQuery.includes('url') || lowerQuery.includes('website')) {
-      contentTypes.push('link');
-    }
-    if (lowerQuery.includes('audio') || lowerQuery.includes('sound') || lowerQuery.includes('recording')) {
-      contentTypes.push('audio');
-    }
-    if (lowerQuery.includes('video')) {
-      contentTypes.push('video');
-    }
-    if (lowerQuery.includes('text') || lowerQuery.includes('note')) {
-      contentTypes.push('text');
-    }
-    
-    if (contentTypes.length > 0) {
-      filters.contentTypes = contentTypes;
-    }
-    
-    const tagFilters: string[] = [];
-    tags.forEach(tag => {
-      if (lowerQuery.includes(tag.name.toLowerCase())) {
-        tagFilters.push(tag.id);
-      }
-    });
-    
-    if (tagFilters.length > 0) {
-      filters.tagIds = tagFilters;
-    }
-    
-    let cleanQuery = lowerQuery
-      .replace(/(today|yesterday|last week|last month)/g, '')
-      .replace(/(image|photo|picture|link|url|website|audio|sound|recording|video|text|note)/g, '');
-    
-    tags.forEach(tag => {
-      cleanQuery = cleanQuery.replace(tag.name.toLowerCase(), '');
-    });
-    
-    cleanQuery = cleanQuery.trim().replace(/\s+/g, ' ');
-    
-    if (cleanQuery) {
-      filters.query = cleanQuery;
-    }
-    
-    return filters;
-  };
-
   const addToRecentViews = (noteId: string) => {
     setRecentViews(prevViews => {
       const filteredViews = prevViews.filter(id => id !== noteId);
@@ -560,8 +405,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         findBacklinks,
         getSuggestedConnections,
         parseNoteContent,
-        searchNotes,
-        parseNaturalLanguageQuery,
         getRecentlyViewedNotes,
         addToRecentViews,
         exportNotes,

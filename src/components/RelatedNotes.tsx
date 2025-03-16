@@ -1,201 +1,178 @@
-
-import React, { useState } from 'react';
-import { Note, useNotes } from '@/contexts/NotesContext';
+import React, { useState, useEffect } from 'react';
+import { useNotes } from '@/contexts/NotesContext';
+import { Note } from '@/contexts/NotesContext';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { 
-  Link, 
-  Unlink, 
-  Search, 
-  SearchX,
-  Brain,
-  MessageSquareCode
-} from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Search, SearchX, Link2, Unlink } from 'lucide-react';
+import { searchNotes } from '@/services/search';
 
 interface RelatedNotesProps {
   note: Note;
-  backlinks: Note[];
-  suggestions: Note[];
+  onNoteClick: (note: Note) => void;
 }
 
-const RelatedNotes: React.FC<RelatedNotesProps> = ({ note, backlinks, suggestions }) => {
-  const { notes, connectNotes, disconnectNotes } = useNotes();
+const RelatedNotes: React.FC<RelatedNotesProps> = ({ note, onNoteClick }) => {
+  const { notes, connectNotes, disconnectNotes, findBacklinks, getSuggestedConnections } = useNotes();
   const [search, setSearch] = useState('');
-  
-  // Explicit connections
-  const connections = (note.connections || [])
-    .map(id => notes.find(n => n.id === id))
-    .filter((n): n is Note => n !== undefined);
-  
-  // Filter notes for potential connections
-  const filteredNotes = notes
-    .filter(n => n.id !== note.id) // Exclude current note
-    .filter(n => !connections.some(conn => conn.id === n.id)) // Exclude already connected notes
-    .filter(n => 
-      search === '' || 
-      n.title.toLowerCase().includes(search.toLowerCase()) || 
-      n.content.toLowerCase().includes(search.toLowerCase())
-    );
+  const [searchResults, setSearchResults] = useState<Note[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const handleConnect = (targetId: string) => {
-    connectNotes(note.id, targetId);
-  };
+  const backlinks = findBacklinks(note.id);
+  const suggestedConnections = getSuggestedConnections(note.id);
+  const connectedNotes = notes.filter(n => note.connections?.includes(n.id));
 
-  const handleDisconnect = (targetId: string) => {
-    disconnectNotes(note.id, targetId);
-  };
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!search.trim()) {
+        setSearchResults([]);
+        return;
+      }
 
-  const renderNoteCard = (relatedNote: Note, isConnected: boolean = false) => (
-    <Card key={relatedNote.id} className="mb-2 border-note-border">
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start">
-          <div className="space-y-1">
-            <h3 className="font-medium">{relatedNote.title}</h3>
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {relatedNote.content}
-            </p>
-            {relatedNote.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
-                {relatedNote.tags.map(tag => (
-                  <Badge 
-                    key={tag.id}
-                    style={{ backgroundColor: tag.color }}
-                    className="text-white text-xs px-2 py-0"
-                    variant="outline"
-                  >
-                    {tag.name}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="shrink-0 ml-4">
-            {isConnected ? (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => handleDisconnect(relatedNote.id)}
-                className="h-8 flex items-center gap-1"
-              >
-                <Unlink className="h-3 w-3" />
-                <span>Disconnect</span>
-              </Button>
-            ) : (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => handleConnect(relatedNote.id)}
-                className="h-8 flex items-center gap-1"
-              >
-                <Link className="h-3 w-3" />
-                <span>Connect</span>
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+      setIsSearching(true);
+      try {
+        const results = await searchNotes(notes, search, { contentTypes: [], tags: [] }, false);
+        setSearchResults(results.filter(n => n.id !== note.id));
+      } catch (error) {
+        console.error('Search error:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    performSearch();
+  }, [search, notes, note.id]);
+
+  const displayedNotes = search ? searchResults : suggestedConnections;
 
   return (
-    <div className="p-4">
-      <Tabs defaultValue="connections">
-        <TabsList className="mb-4 w-full">
-          <TabsTrigger value="connections" className="flex-1">
-            <Link className="h-4 w-4 mr-2" />
-            Connections ({connections.length})
-          </TabsTrigger>
-          <TabsTrigger value="backlinks" className="flex-1">
-            <Link className="h-4 w-4 mr-2 rotate-180" />
-            Backlinks ({backlinks.length})
-          </TabsTrigger>
-          <TabsTrigger value="suggestions" className="flex-1">
-            <Brain className="h-4 w-4 mr-2" />
-            Suggested ({suggestions.length})
-          </TabsTrigger>
-          <TabsTrigger value="all" className="flex-1">
-            <Search className="h-4 w-4 mr-2" />
-            All Notes
-          </TabsTrigger>
-        </TabsList>
+    <div className="space-y-4">
+      <div className="relative">
+        <Input
+          type="text"
+          placeholder="Search for notes to connect..."
+          className="w-full pl-9 pr-4"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      </div>
 
-        <TabsContent value="connections">
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium mb-2">Explicitly Connected Notes</h3>
-            {connections.length > 0 ? (
-              connections.map(connectedNote => renderNoteCard(connectedNote, true))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Link className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                <p>No explicit connections yet.</p>
-                <p className="text-sm mt-2">Create connections to build your knowledge network.</p>
-              </div>
-            )}
+      <ScrollArea className="h-[300px]">
+        {isSearching ? (
+          <div className="flex flex-col items-center justify-center h-full py-8">
+            <div className="animate-spin">
+              <Search className="h-5 w-5 text-primary" />
+            </div>
+            <span className="mt-2 text-sm text-muted-foreground">Searching...</span>
           </div>
-        </TabsContent>
-
-        <TabsContent value="backlinks">
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium mb-2">Notes Referring to This Note</h3>
-            {backlinks.length > 0 ? (
-              backlinks.map(backlinkNote => renderNoteCard(backlinkNote))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <SearchX className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                <p>No backlinks found.</p>
-                <p className="text-sm mt-2">Other notes that link to this one will appear here.</p>
+        ) : displayedNotes.length > 0 ? (
+          <div className="space-y-2 p-1">
+            {displayedNotes.map((relatedNote) => (
+              <div
+                key={relatedNote.id}
+                className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 group"
+              >
+                <button
+                  onClick={() => onNoteClick(relatedNote)}
+                  className="flex-1 text-left"
+                >
+                  <h4 className="font-medium line-clamp-1">{relatedNote.title}</h4>
+                  <p className="text-sm text-muted-foreground line-clamp-1">
+                    {relatedNote.content}
+                  </p>
+                </button>
+                {note.connections?.includes(relatedNote.id) ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => disconnectNotes(note.id, relatedNote.id)}
+                    className="opacity-0 group-hover:opacity-100"
+                  >
+                    <Unlink className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => connectNotes(note.id, relatedNote.id)}
+                    className="opacity-0 group-hover:opacity-100"
+                  >
+                    <Link2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
-            )}
+            ))}
           </div>
-        </TabsContent>
+        ) : search ? (
+          <div className="flex flex-col items-center justify-center h-full py-8">
+            <SearchX className="h-16 w-16 mx-auto mb-4 opacity-20" />
+            <p>No notes found matching your search.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full py-8">
+            <SearchX className="h-16 w-16 mx-auto mb-4 opacity-20" />
+            <p>No suggested connections found.</p>
+          </div>
+        )}
+      </ScrollArea>
 
-        <TabsContent value="suggestions">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium">AI-Suggested Related Notes</h3>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <MessageSquareCode className="h-3 w-3 mr-1" />
-                <span>Content similarity based</span>
+      {(connectedNotes.length > 0 || backlinks.length > 0) && (
+        <div className="space-y-4 mt-6">
+          {connectedNotes.length > 0 && (
+            <div>
+              <h3 className="font-medium mb-2">Connected Notes</h3>
+              <div className="space-y-2">
+                {connectedNotes.map((connectedNote) => (
+                  <div
+                    key={connectedNote.id}
+                    className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 group"
+                  >
+                    <button
+                      onClick={() => onNoteClick(connectedNote)}
+                      className="flex-1 text-left"
+                    >
+                      <h4 className="font-medium line-clamp-1">{connectedNote.title}</h4>
+                      <p className="text-sm text-muted-foreground line-clamp-1">
+                        {connectedNote.content}
+                      </p>
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => disconnectNotes(note.id, connectedNote.id)}
+                      className="opacity-0 group-hover:opacity-100"
+                    >
+                      <Unlink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             </div>
-            {suggestions.length > 0 ? (
-              suggestions.map(suggestedNote => renderNoteCard(suggestedNote))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Brain className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                <p>No related notes found.</p>
-                <p className="text-sm mt-2">Create more notes to see AI-suggested connections.</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
+          )}
 
-        <TabsContent value="all">
-          <div className="space-y-4">
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search for notes to connect..." 
-                className="pl-10"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            
-            {filteredNotes.length > 0 ? (
-              filteredNotes.map(filteredNote => renderNoteCard(filteredNote))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <SearchX className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                <p>No notes found matching your search.</p>
+          {backlinks.length > 0 && (
+            <div>
+              <h3 className="font-medium mb-2">Mentioned In</h3>
+              <div className="space-y-2">
+                {backlinks.map((backlink) => (
+                  <button
+                    key={backlink.id}
+                    onClick={() => onNoteClick(backlink)}
+                    className="w-full p-2 text-left rounded-lg hover:bg-muted/50"
+                  >
+                    <h4 className="font-medium line-clamp-1">{backlink.title}</h4>
+                    <p className="text-sm text-muted-foreground line-clamp-1">
+                      {backlink.content}
+                    </p>
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
