@@ -1,11 +1,11 @@
-
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import NotesList from '@/components/NotesList';
 import Collections from '@/components/Collections';
 import { Note } from '@/contexts/NotesContext';
-import { FileText, Bookmark, Clock } from 'lucide-react';
+import { FileText, Bookmark, Clock, Plus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 
 interface NotesTabsProps {
   activeTab: string;
@@ -15,6 +15,7 @@ interface NotesTabsProps {
   selectedNoteId: string | undefined;
   onNoteClick: (note: Note) => void;
   isLoading: boolean;
+  onAddNote: () => void;
 }
 
 const NotesTabsContent: React.FC<{
@@ -75,37 +76,51 @@ const NotesTabsContent: React.FC<{
 };
 
 const NotesTabs: React.FC<NotesTabsProps> = (props) => {
-  const { activeTab, setActiveTab } = props;
+  const { activeTab, setActiveTab, onAddNote } = props;
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="mb-4 bg-muted/50 p-1 rounded-lg">
-        <TabsTrigger 
-          value="all" 
-          className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm transition-all"
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
+      <div className="space-y-4 px-4 pt-4">
+        <Button 
+          onClick={onAddNote}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2"
         >
-          <FileText className="h-4 w-4 text-indigo-500" />
-          <span>All Notes</span>
-        </TabsTrigger>
-        <TabsTrigger 
-          value="collections" 
-          className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm transition-all"
-        >
-          <Bookmark className="h-4 w-4 text-purple-500" />
-          <span>Collections</span>
-        </TabsTrigger>
-        <TabsTrigger 
-          value="recent" 
-          className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm transition-all"
-        >
-          <Clock className="h-4 w-4 text-pink-500" />
-          <span>Recent</span>
-        </TabsTrigger>
-      </TabsList>
+          <Plus className="h-4 w-4" />
+          Add Note
+        </Button>
+
+        <TabsList className="bg-muted/50 p-1 rounded-lg w-full">
+          <TabsTrigger 
+            value="all" 
+            className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm transition-all"
+          >
+            <FileText className="h-4 w-4 text-indigo-500" />
+            <span>All Notes</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="collections" 
+            className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm transition-all"
+          >
+            <Bookmark className="h-4 w-4 text-purple-500" />
+            <span>Collections</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="recent" 
+            className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm transition-all"
+          >
+            <Clock className="h-4 w-4 text-pink-500" />
+            <span>Recent</span>
+          </TabsTrigger>
+        </TabsList>
+      </div>
       
-      <ScrollArea className="max-h-[calc(100vh-280px)] pr-2 rounded-md">
-        <NotesTabsContent {...props} />
-      </ScrollArea>
+      <div className="flex-1 min-h-0 px-4">
+        <ScrollArea className="h-[calc(100vh-340px)]">
+          <div className="pr-4">
+            <NotesTabsContent {...props} />
+          </div>
+        </ScrollArea>
+      </div>
     </Tabs>
   );
 };

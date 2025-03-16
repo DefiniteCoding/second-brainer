@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import QuickCaptureButton from '@/components/QuickCaptureButton';
 import CaptureDialog from '@/components/CaptureDialog';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -127,7 +125,7 @@ const Index = () => {
   };
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in h-screen flex flex-col">
       <HeaderSection />
 
       <SearchBar 
@@ -140,10 +138,10 @@ const Index = () => {
 
       <ResizablePanelGroup 
         direction="horizontal" 
-        className="min-h-[600px] rounded-lg border shadow-sm bg-card"
+        className="flex-1 min-h-0 rounded-lg border shadow-sm bg-card"
       >
         <ResizablePanel defaultSize={30} minSize={20}>
-          <div className="h-full p-4">
+          <div className="h-full">
             <NotesTabs
               activeTab={activeTab}
               setActiveTab={setActiveTab}
@@ -152,6 +150,7 @@ const Index = () => {
               selectedNoteId={selectedNote?.id}
               onNoteClick={handleNoteSelected}
               isLoading={isLoading}
+              onAddNote={() => openCaptureDialog()}
             />
           </div>
         </ResizablePanel>
@@ -159,7 +158,7 @@ const Index = () => {
         <ResizableHandle withHandle className="bg-muted/80 hover:bg-muted transition-colors" />
         
         <ResizablePanel defaultSize={70}>
-          <div className="h-full p-4">
+          <div className="h-full">
             <NoteDetailView
               selectedNote={selectedNote}
               isLoading={isLoading}
@@ -171,8 +170,6 @@ const Index = () => {
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      <QuickCaptureButton onCaptureClick={() => openCaptureDialog()} />
-      
       <CaptureDialog
         open={captureDialogOpen}
         onOpenChange={handleCaptureDialogClose}
