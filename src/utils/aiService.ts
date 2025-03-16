@@ -1,4 +1,3 @@
-
 import { Note } from '@/contexts/NotesContext';
 
 interface AIResponse {
@@ -14,7 +13,7 @@ interface SummaryOptions {
 }
 
 // AI API Key from environment or storage
-let geminiApiKey = localStorage.getItem('gemini-api-key') || '';
+let geminiApiKey = 'AIzaSyDzeU0MahoC4Y4EM6NxjinKva7cv0AtU-g'; // Replace this with your actual Gemini API key
 
 export const setApiKey = (key: string): void => {
   geminiApiKey = key;
