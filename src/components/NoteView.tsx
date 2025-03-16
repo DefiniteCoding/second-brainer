@@ -196,7 +196,7 @@ const NoteView: React.FC<NoteViewProps> = ({
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="rounded-lg border bg-card p-4 shadow-sm">
+                  <div className="bg-card">
                     <AIEnhance note={note} />
                   </div>
                 </motion.div>

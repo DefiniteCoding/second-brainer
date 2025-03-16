@@ -165,7 +165,7 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
   };
 
   return (
-    <div className="mt-4 border-t pt-4">
+    <div>
       <h3 className="text-sm font-medium mb-2 flex items-center gap-1">
         <Sparkles className="h-4 w-4 text-purple-500" />
         <span>AI Enhancements</span>
