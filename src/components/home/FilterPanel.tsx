@@ -1,23 +1,37 @@
 import React from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { FileText, Image, Link2, Mic, Video } from 'lucide-react';
+import { FileText, Image, Link2, Mic, Video, Check } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface FilterPanelProps {
   onReset: () => void;
+  onChange: (filters: {
+    dateRange?: DateRange;
+    contentTypes: string[];
+    tags: string[];
+  }) => void;
 }
 
-const FilterPanel: React.FC<FilterPanelProps> = ({ onReset }) => {
-  const [date, setDate] = React.useState<Date | undefined>(new Date());
+const FilterPanel: React.FC<FilterPanelProps> = ({ onReset, onChange }) => {
+  const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
   const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
   const [selectedContentTypes, setSelectedContentTypes] = React.useState<string[]>([]);
+  const [tagsOpen, setTagsOpen] = React.useState(false);
 
   const contentTypes = [
     { id: 'text', icon: FileText, label: 'Text', color: 'text-blue-500' },
@@ -34,6 +48,22 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onReset }) => {
     { id: 'idea', color: 'bg-purple-500', label: 'Idea' },
   ];
 
+  // Update parent component when filters change
+  React.useEffect(() => {
+    onChange({
+      dateRange,
+      contentTypes: selectedContentTypes,
+      tags: selectedTags,
+    });
+  }, [dateRange, selectedContentTypes, selectedTags, onChange]);
+
+  const handleReset = () => {
+    setDateRange(undefined);
+    setSelectedTags([]);
+    setSelectedContentTypes([]);
+    onReset();
+  };
+
   return (
     <div className="p-4 space-y-4">
       <div className="flex gap-4">
@@ -41,9 +71,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onReset }) => {
           <h3 className="text-sm font-medium mb-2">Date Range</h3>
           <div className="border rounded-lg bg-card">
             <Calendar
-              mode="single"
-              selected={date}
-              onSelect={setDate}
+              mode="range"
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={1}
               className="rounded-md"
             />
           </div>
@@ -80,27 +111,64 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onReset }) => {
 
       <div>
         <h3 className="text-sm font-medium mb-2">Tags</h3>
-        <Select>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select tags..." />
-          </SelectTrigger>
-          <SelectContent>
-            {tags.map(tag => (
-              <SelectItem key={tag.id} value={tag.id}>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${tag.color}`} />
-                  <span>{tag.label}</span>
+        <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={tagsOpen}
+              className="w-full justify-between"
+            >
+              {selectedTags.length === 0 ? (
+                <span className="text-muted-foreground">Select tags...</span>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {selectedTags.map(tagId => {
+                    const tag = tags.find(t => t.id === tagId);
+                    return tag ? (
+                      <Badge key={tag.id} variant="secondary">
+                        <div className={`w-2 h-2 rounded-full ${tag.color} mr-1`} />
+                        {tag.label}
+                      </Badge>
+                    ) : null;
+                  })}
                 </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-full p-0">
+            <Command>
+              <CommandInput placeholder="Search tags..." />
+              <CommandEmpty>No tags found.</CommandEmpty>
+              <CommandGroup>
+                {tags.map(tag => (
+                  <CommandItem
+                    key={tag.id}
+                    onSelect={() => {
+                      setSelectedTags(prev =>
+                        prev.includes(tag.id)
+                          ? prev.filter(t => t !== tag.id)
+                          : [...prev, tag.id]
+                      );
+                    }}
+                  >
+                    <div className={`w-2 h-2 rounded-full ${tag.color} mr-2`} />
+                    <span>{tag.label}</span>
+                    {selectedTags.includes(tag.id) && (
+                      <Check className="ml-auto h-4 w-4" />
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <Button
         variant="outline"
         className="w-full"
-        onClick={onReset}
+        onClick={handleReset}
       >
         Reset Filters
       </Button>

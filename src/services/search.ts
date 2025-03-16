@@ -3,6 +3,7 @@ import * as aiService from './ai';
 
 interface SearchFilters {
   date?: Date;
+  dateRange?: { from: Date; to: Date };
   contentTypes: string[];
   tags: string[];
 }
@@ -14,11 +15,8 @@ export const searchNotes = async (
   isAISearch: boolean
 ): Promise<Note[]> => {
   if (isAISearch) {
-    const results = await aiService.semanticSearch(searchTerm);
-    if (results.error || !results.notes) {
-      throw new Error(results.error || 'Failed to perform AI search');
-    }
-    return applyFilters(results.notes, filters);
+    const results = await aiService.naturalLanguageSearch(searchTerm, notes);
+    return applyFilters(results, filters);
   }
 
   // Basic search implementation
@@ -35,7 +33,19 @@ export const searchNotes = async (
 const applyFilters = (notes: Note[], filters: SearchFilters): Note[] => {
   return notes.filter(note => {
     // Date filter
-    if (filters.date) {
+    if (filters.dateRange?.from && filters.dateRange?.to) {
+      const noteDate = new Date(note.updatedAt || note.createdAt);
+      const fromDate = new Date(filters.dateRange.from);
+      const toDate = new Date(filters.dateRange.to);
+      
+      // Set time to start and end of day for accurate comparison
+      fromDate.setHours(0, 0, 0, 0);
+      toDate.setHours(23, 59, 59, 999);
+      
+      if (noteDate < fromDate || noteDate > toDate) {
+        return false;
+      }
+    } else if (filters.date) {
       const noteDate = new Date(note.updatedAt || note.createdAt);
       const filterDate = new Date(filters.date);
       
@@ -58,7 +68,7 @@ const applyFilters = (notes: Note[], filters: SearchFilters): Note[] => {
 
     // Tags filter
     if (filters.tags.length > 0) {
-      if (!note.tags || !filters.tags.some(tag => note.tags?.includes(tag))) {
+      if (!note.tags || !filters.tags.some(tagId => note.tags.some(tag => tag.id === tagId))) {
         return false;
       }
     }

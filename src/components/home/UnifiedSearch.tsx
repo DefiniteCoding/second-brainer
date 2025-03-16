@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Tags, Sparkles, X, FileText, Image, Link2, Mic, Video } from 'lucide-react';
@@ -18,24 +18,23 @@ import { hasApiKey } from '@/services/ai';
 import { useToast } from '@/components/ui/use-toast';
 import { useNotes } from '@/contexts/NotesContext';
 import { searchNotes } from '@/services/search';
+import { DateRange } from 'react-day-picker';
+import { FilterPanel } from './FilterPanel';
 
 interface UnifiedSearchProps {
   onSearchResults: (results: Note[] | null, isSearching: boolean) => void;
 }
 
 interface SearchFilters {
-  date?: Date;
+  dateRange?: DateRange;
   contentTypes: string[];
   tags: string[];
 }
 
 export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults }) => {
-  // Search state
   const [searchTerm, setSearchTerm] = useState('');
   const [isAISearch, setIsAISearch] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-
-  // Filter state
   const [filters, setFilters] = useState<SearchFilters>({
     contentTypes: [],
     tags: []
@@ -44,14 +43,7 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
   const { toast } = useToast();
   const { notes } = useNotes();
 
-  // Clear search results when search term is empty
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      onSearchResults(null, false);
-    }
-  }, [searchTerm, onSearchResults]);
-
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!searchTerm.trim()) {
       onSearchResults(null, false);
       return;
@@ -70,7 +62,13 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
         return;
       }
 
-      const results = await searchNotes(notes, searchTerm, filters, isAISearch);
+      const searchFilters = {
+        date: filters.dateRange?.from,
+        contentTypes: filters.contentTypes,
+        tags: filters.tags
+      };
+
+      const results = await searchNotes(notes, searchTerm, searchFilters, isAISearch);
       onSearchResults(results, false);
     } catch (error) {
       toast({
@@ -82,10 +80,24 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [searchTerm, isAISearch, filters, notes, onSearchResults, toast]);
 
-  const handleFilterChange = (newFilters: Partial<SearchFilters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
+  // Debounced search effect
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      onSearchResults(null, false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      handleSearch();
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, handleSearch]);
+
+  const handleFilterChange = (newFilters: SearchFilters) => {
+    setFilters(newFilters);
     if (searchTerm.trim()) {
       handleSearch();
     }
@@ -108,7 +120,6 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           placeholder="Search notes..."
           className="w-full pl-10 pr-24 h-10 bg-muted/50 border-muted-foreground/20 rounded-lg"
         />
@@ -142,7 +153,6 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
             </PopoverTrigger>
             <PopoverContent className="w-[800px] p-0" align="end">
               <FilterPanel
-                filters={filters}
                 onChange={handleFilterChange}
                 onReset={resetFilters}
               />
@@ -207,107 +217,6 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, onNoteSelected, 
           <p className="text-sm text-muted-foreground line-clamp-2">{note.content}</p>
         </button>
       ))}
-    </div>
-  );
-};
-
-interface FilterPanelProps {
-  filters: SearchFilters;
-  onChange: (filters: Partial<SearchFilters>) => void;
-  onReset: () => void;
-}
-
-const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset }) => {
-  const contentTypes = [
-    { id: 'text', icon: FileText, label: 'Text', color: 'text-blue-500' },
-    { id: 'image', icon: Image, label: 'Image', color: 'text-green-500' },
-    { id: 'link', icon: Link2, label: 'Link', color: 'text-purple-500' },
-    { id: 'audio', icon: Mic, label: 'Audio', color: 'text-amber-500' },
-    { id: 'video', icon: Video, label: 'Video', color: 'text-red-500' },
-  ];
-
-  const tags = [
-    { id: 'important', color: 'bg-red-500', label: 'Important' },
-    { id: 'work', color: 'bg-blue-500', label: 'Work' },
-    { id: 'personal', color: 'bg-green-500', label: 'Personal' },
-    { id: 'idea', color: 'bg-purple-500', label: 'Idea' },
-  ];
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <h3 className="text-sm font-medium mb-2">Date Range</h3>
-          <div className="border rounded-lg bg-card">
-            <Calendar
-              mode="single"
-              selected={filters.date}
-              onSelect={(date) => onChange({ date })}
-              className="rounded-md"
-            />
-          </div>
-        </div>
-        
-        <div className="flex-1">
-          <h3 className="text-sm font-medium mb-2">Content Type</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {contentTypes.map((type) => {
-              const Icon = type.icon;
-              const isSelected = filters.contentTypes.includes(type.id);
-              return (
-                <Button
-                  key={type.id}
-                  variant="outline"
-                  className={`flex flex-col items-center justify-center h-20 p-2 hover:bg-muted ${
-                    isSelected ? 'border-primary' : ''
-                  }`}
-                  onClick={() => {
-                    onChange({
-                      contentTypes: isSelected
-                        ? filters.contentTypes.filter(t => t !== type.id)
-                        : [...filters.contentTypes, type.id]
-                    });
-                  }}
-                >
-                  <Icon className={`h-6 w-6 ${type.color} mb-1`} />
-                  <span className="text-xs text-center">{type.label}</span>
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-medium mb-2">Tags</h3>
-        <Select
-          multiple
-          value={filters.tags}
-          onChange={(value) => onChange({ tags: value })}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select tags..." />
-          </SelectTrigger>
-          <SelectContent>
-            {tags.map(tag => (
-              <SelectItem key={tag.id} value={tag.id}>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${tag.color}`} />
-                  <span>{tag.label}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={onReset}
-      >
-        Reset Filters
-      </Button>
     </div>
   );
 };
