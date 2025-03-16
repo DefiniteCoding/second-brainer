@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNotes, SearchFilter, Note } from '@/contexts/NotesContext';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { hasApiKey, naturalLanguageSearch } from '@/services/ai';
+import { hasApiKey, naturalLanguageSearch } from '@/utils/aiService';
 
 interface SearchPanelProps {
   onNoteSelected: (note: Note) => void;

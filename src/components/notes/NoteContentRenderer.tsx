@@ -64,109 +64,69 @@ const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
   
   // Check if processedContent is an array of React elements (for content with note mentions)
   const isProcessedContentArray = Array.isArray(processedContent);
-
-  const markdownComponents = {
-    code({node, inline, className, children, ...props}) {
-      const match = /language-(\w+)/.exec(className || '');
-      const language = match ? match[1] : '';
-      
-      return !inline && language ? (
-        <SyntaxHighlighter
-          style={vscDarkPlus}
-          language={language}
-          PreTag="div"
-          {...props}
-        >
-          {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
-      ) : (
-        <code className={className} {...props}>
-          {children}
-        </code>
-      );
-    },
-    h1: ({node, children, ...props}) => (
-      <h1 className="text-2xl font-bold mt-6 mb-4 text-primary" {...props}>
-        {children}
-      </h1>
-    ),
-    h2: ({node, children, ...props}) => (
-      <h2 className="text-xl font-bold mt-5 mb-3 text-primary/90" {...props}>
-        {children}
-      </h2>
-    ),
-    h3: ({node, children, ...props}) => (
-      <h3 className="text-lg font-bold mt-4 mb-2 text-primary/80" {...props}>
-        {children}
-      </h3>
-    ),
-    ul: ({node, children, ...props}) => (
-      <ul className="list-disc pl-6 my-4" {...props}>
-        {children}
-      </ul>
-    ),
-    ol: ({node, children, ...props}) => (
-      <ol className="list-decimal pl-6 my-4" {...props}>
-        {children}
-      </ol>
-    ),
-    li: ({node, children, ...props}) => (
-      <li className="my-1" {...props}>
-        {children}
-      </li>
-    ),
-    blockquote: ({node, children, ...props}) => (
-      <blockquote className="border-l-4 border-primary/30 pl-4 italic my-4" {...props}>
-        {children}
-      </blockquote>
-    ),
-    a: ({node, children, href, ...props}) => (
-      <a 
-        href={href}
-        className="text-blue-600 dark:text-blue-400 hover:underline"
-        {...props}
-      >
-        {children}
-      </a>
-    ),
-    table: ({node, children, ...props}) => (
-      <div className="overflow-x-auto my-4">
-        <table className="min-w-full divide-y divide-gray-300" {...props}>
-          {children}
-        </table>
-      </div>
-    ),
-    th: ({node, children, ...props}) => (
-      <th className="px-3 py-2 bg-gray-100 dark:bg-gray-800 font-semibold text-left" {...props}>
-        {children}
-      </th>
-    ),
-    td: ({node, children, ...props}) => (
-      <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-700" {...props}>
-        {children}
-      </td>
-    )
-  };
   
   return (
-    <div className="prose prose-sm md:prose-base lg:prose-lg dark:prose-invert max-w-none">
+    <div className="prose prose-sm md:prose-base lg:prose-lg max-w-none dark:prose-invert prose-headings:text-primary prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground">
       {summarizedContent ? (
         <div className="p-4 border rounded-md bg-muted/50">
           <ReactMarkdown 
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex]}
-            components={markdownComponents}
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code({node, inline, className, children, ...props}) {
+                const match = /language-(\w+)/.exec(className || '');
+                return !inline && match ? (
+                  <SyntaxHighlighter
+                    style={atomDark}
+                    language={match[1]}
+                    PreTag="div"
+                    {...props}
+                  >
+                    {String(children).replace(/\n$/, '')}
+                  </SyntaxHighlighter>
+                ) : (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                );
+              }
+            }}
           >
             {summarizedContent}
           </ReactMarkdown>
         </div>
       ) : isProcessedContentArray ? (
+        // If it's an array with mentions, render it directly
         <div>{processedContent}</div>
       ) : (
+        // Otherwise, render it as markdown with enhanced components
         <ReactMarkdown 
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeKatex]}
-          components={markdownComponents}
+          remarkPlugins={[remarkGfm]}
+          components={{
+            code({node, inline, className, children, ...props}) {
+              const match = /language-(\w+)/.exec(className || '');
+              return !inline && match ? (
+                <SyntaxHighlighter
+                  style={atomDark}
+                  language={match[1]}
+                  PreTag="div"
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              ) : (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              );
+            },
+            h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-6 mb-4 text-primary" {...props} />,
+            h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-5 mb-3 text-primary/90" {...props} />,
+            h3: ({node, ...props}) => <h3 className="text-lg font-bold mt-4 mb-2 text-primary/80" {...props} />,
+            ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4" {...props} />,
+            ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4" {...props} />,
+            li: ({node, ...props}) => <li className="my-1" {...props} />,
+            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-primary/30 pl-4 italic my-4" {...props} />
+          }}
         >
           {typeof processedContent === 'string' ? processedContent : note.content}
         </ReactMarkdown>
