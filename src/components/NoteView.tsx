@@ -178,7 +178,7 @@ const NoteView: React.FC<NoteViewProps> = ({
       <ScrollArea className="flex-1 px-4">
         <motion.div
           variants={fadeIn}
-          className="prose prose-sm dark:prose-invert max-w-none py-6"
+          className="prose prose-sm dark:prose-invert max-w-none"
         >
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NotesProvider } from '@/contexts/NotesContext';
 
@@ -10,7 +9,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   return (
     <NotesProvider>
       <div className="min-h-screen bg-background">
-        <div className="container max-w-6xl mx-auto py-8 px-4 md:px-6">
+        <div className="container mx-auto px-4">
           {children}
         </div>
       </div>
