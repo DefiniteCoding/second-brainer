@@ -34,6 +34,7 @@ const AISettings: React.FC<AISettingsProps> = ({ onSave }) => {
           size="sm" 
           className="flex w-full items-center justify-start"
           title="AI Settings"
+          onClick={() => setIsOpen(true)}
         >
           <Sparkles className="mr-2 h-4 w-4 text-purple-500" />
           <span>AI Settings</span>
