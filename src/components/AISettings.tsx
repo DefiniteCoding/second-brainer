@@ -2,43 +2,30 @@ import React, { useState } from 'react';
 import { hasApiKey, setApiKey, getApiKey } from '@/services/ai';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Sparkles, Save, Key } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Key } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 interface AISettingsProps {
-  onSave?: () => void;
+  open?: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-const AISettings: React.FC<AISettingsProps> = ({ onSave }) => {
+const AISettings: React.FC<AISettingsProps> = ({ open = false, onOpenChange }) => {
   const [apiKey, setApiKeyState] = useState<string>(getApiKey() || '');
-  const [isOpen, setIsOpen] = useState<boolean>(false);
   const { toast } = useToast();
 
   const handleSave = () => {
     setApiKey(apiKey.trim());
-    setIsOpen(false);
+    onOpenChange(false);
     toast({
       title: "API Key Saved",
       description: "Your Gemini API key has been saved",
     });
-    if (onSave) onSave();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="flex w-full items-center justify-start"
-          title="AI Settings"
-          onClick={() => setIsOpen(true)}
-        >
-          <Sparkles className="mr-2 h-4 w-4 text-purple-500" />
-          <span>AI Settings</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>AI Settings</DialogTitle>
@@ -68,7 +55,7 @@ const AISettings: React.FC<AISettingsProps> = ({ onSave }) => {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave}>Save</Button>
         </DialogFooter>
       </DialogContent>
