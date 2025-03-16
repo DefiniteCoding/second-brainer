@@ -127,7 +127,7 @@ const Index = () => {
   };
 
   return (
-    <>
+    <div className="animate-fade-in">
       <HeaderSection />
 
       <SearchBar 
@@ -140,10 +140,10 @@ const Index = () => {
 
       <ResizablePanelGroup 
         direction="horizontal" 
-        className="min-h-[600px] rounded-lg border"
+        className="min-h-[600px] rounded-lg border shadow-sm bg-card"
       >
         <ResizablePanel defaultSize={30} minSize={20}>
-          <div className="h-full p-4 bg-card">
+          <div className="h-full p-4">
             <NotesTabs
               activeTab={activeTab}
               setActiveTab={setActiveTab}
@@ -156,10 +156,10 @@ const Index = () => {
           </div>
         </ResizablePanel>
         
-        <ResizableHandle withHandle />
+        <ResizableHandle withHandle className="bg-muted/80 hover:bg-muted transition-colors" />
         
         <ResizablePanel defaultSize={70}>
-          <div className="h-full p-4 bg-card">
+          <div className="h-full p-4">
             <NoteDetailView
               selectedNote={selectedNote}
               isLoading={isLoading}
@@ -189,11 +189,16 @@ const Index = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteNote}>Delete</AlertDialogAction>
+            <AlertDialogAction 
+              onClick={handleDeleteNote}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 };
 

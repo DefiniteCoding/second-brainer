@@ -2,14 +2,20 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Sparkles, Network } from 'lucide-react';
+import { Search, Settings, Network } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import TagManager from '@/components/TagManager';
-import AISettings from '@/components/AISettings';
-import DataExportImport from '@/components/DataExportImport';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import SearchWrapper from '@/components/home/SearchWrapper';
 import { Card, CardContent } from '@/components/ui/card';
 import { Note } from '@/contexts/NotesContext';
+import TagManager from '@/components/TagManager';
+import DataExportImport from '@/components/DataExportImport';
+import AISettings from '@/components/AISettings';
 
 interface SearchBarProps {
   searchTerm: string;
@@ -27,11 +33,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
   onNoteSelected
 }) => {
   const navigate = useNavigate();
+  const [showAISettings, setShowAISettings] = useState(false);
 
   return (
     <div className="relative mb-6">
       {advancedSearchActive ? (
-        <Card>
+        <Card className="animate-fade-in shadow-md">
           <CardContent className="pt-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Advanced Search</h3>
@@ -53,7 +60,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Search your notes..." 
-              className="pl-10"
+              className="pl-10 bg-background border-muted focus-visible:ring-2 focus-visible:ring-indigo-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -61,19 +68,45 @@ const SearchBar: React.FC<SearchBarProps> = ({
           <div className="flex gap-2">
             <Button 
               variant="outline" 
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 h-10 shadow-sm hover:bg-indigo-50 dark:hover:bg-indigo-950"
               onClick={() => setAdvancedSearchActive(true)}
               title="Advanced Search"
             >
-              <Sparkles className="h-4 w-4 text-amber-500" /> 
+              <Search className="h-4 w-4 text-indigo-500" /> 
               <span className="hidden sm:inline">Advanced</span>
             </Button>
-            <TagManager />
-            <AISettings />
-            <DataExportImport />
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2 h-10 shadow-sm hover:bg-indigo-50 dark:hover:bg-indigo-950"
+                  title="Settings"
+                >
+                  <Settings className="h-4 w-4 text-slate-600" />
+                  <span className="hidden sm:inline">Settings</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setShowAISettings(true)}>
+                  AI Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <div className="w-full">
+                    <TagManager />
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <div className="w-full">
+                    <DataExportImport />
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             <Button 
               variant="outline" 
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 h-10 shadow-sm hover:bg-indigo-50 dark:hover:bg-indigo-950"
               onClick={() => navigate('/graph')}
               title="Knowledge Graph"
             >
@@ -82,6 +115,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
             </Button>
           </div>
         </div>
+      )}
+      
+      {showAISettings && (
+        <AISettings onSave={() => setShowAISettings(false)} />
       )}
     </div>
   );

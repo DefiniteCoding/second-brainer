@@ -8,7 +8,6 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger,
   DialogFooter,
   DialogDescription
 } from '@/components/ui/dialog';
@@ -61,13 +60,17 @@ const DataExportImport: React.FC = () => {
 
   return (
     <>
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="flex w-full items-center justify-start"
+        onClick={() => setDialogOpen(true)}
+      >
+        <Database className="mr-2 h-4 w-4" />
+        <span>Data Management</span>
+      </Button>
+      
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            <span>Data Management</span>
-          </Button>
-        </DialogTrigger>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Manage Your Data</DialogTitle>
@@ -106,7 +109,7 @@ const DataExportImport: React.FC = () => {
           <div className="flex gap-4">
             <Button 
               onClick={handleExport} 
-              className="flex-1 flex items-center justify-center gap-2"
+              className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700"
             >
               <Download className="h-4 w-4" />
               Export Notes
@@ -115,7 +118,7 @@ const DataExportImport: React.FC = () => {
             <Button
               onClick={handleImportClick}
               variant="outline"
-              className="flex-1 flex items-center justify-center gap-2"
+              className="flex-1 flex items-center justify-center gap-2 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-900 dark:hover:bg-indigo-950"
             >
               <Upload className="h-4 w-4" />
               Import Notes
@@ -131,7 +134,11 @@ const DataExportImport: React.FC = () => {
           </div>
 
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="w-full">
+            <Button 
+              variant="outline" 
+              onClick={() => setDialogOpen(false)} 
+              className="w-full"
+            >
               Close
             </Button>
           </DialogFooter>

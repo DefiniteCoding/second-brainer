@@ -4,6 +4,7 @@ import { useNotes, Note } from '@/contexts/NotesContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Image, Link, Mic, FileCode, Music, Video, BookOpen, Star, FileCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface NotesListProps {
   onNoteClick?: (note: Note) => void;
@@ -25,10 +26,10 @@ const NotesList: React.FC<NotesListProps> = ({ onNoteClick, notes: propNotes, se
 
   const getContentTypeIcon = (type: string, title: string) => {
     // Choose icon based on content type
-    let icon = <FileText className="h-4 w-4 text-blue-500" />;
+    let icon = <FileText className="h-4 w-4 text-indigo-500" />;
     
     if (type === 'image') {
-      icon = <Image className="h-4 w-4 text-green-500" />;
+      icon = <Image className="h-4 w-4 text-emerald-500" />;
     } else if (type === 'link') {
       icon = <Link className="h-4 w-4 text-purple-500" />;
     } else if (type === 'audio') {
@@ -55,11 +56,13 @@ const NotesList: React.FC<NotesListProps> = ({ onNoteClick, notes: propNotes, se
       {notes.map((note) => (
         <Card 
           key={note.id}
-          className={`transition-all cursor-pointer hover:shadow-md ${
+          className={cn(
+            "transition-all cursor-pointer hover:shadow-md border border-slate-200 dark:border-slate-800",
             selectedNoteId === note.id 
-              ? 'border-primary bg-primary/5 shadow-sm' 
-              : 'hover:bg-accent/50'
-          }`}
+              ? 'border-indigo-300 bg-indigo-50/50 dark:bg-indigo-900/20 shadow-sm ring-1 ring-indigo-300 dark:ring-indigo-700' 
+              : 'hover:bg-slate-50 dark:hover:bg-slate-900/30',
+            "animate-fade-in"
+          )}
           onClick={() => onNoteClick && onNoteClick(note)}
         >
           <CardContent className="p-4">
@@ -84,9 +87,9 @@ const NotesList: React.FC<NotesListProps> = ({ onNoteClick, notes: propNotes, se
                   <Badge 
                     key={tag.id} 
                     variant="outline"
-                    className="text-xs px-2 py-0 border-none"
+                    className="text-xs px-2 py-0 border-none transition-colors"
                     style={{ 
-                      backgroundColor: `${tag.color}20`,
+                      backgroundColor: `${tag.color}15`,
                       color: tag.color 
                     }}
                   >
