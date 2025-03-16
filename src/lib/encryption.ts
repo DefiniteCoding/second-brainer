@@ -21,14 +21,16 @@ const bytesToString = (bytes: Uint8Array): string => {
   return new TextDecoder().decode(bytes);
 };
 
-// Convert string to base64
-const stringToBase64 = (str: string): string => {
-  return btoa(str);
+// Convert bytes to base64
+const bytesToBase64 = (bytes: Uint8Array): string => {
+  const binString = Array.from(bytes, (x) => String.fromCharCode(x)).join("");
+  return btoa(binString);
 };
 
-// Convert base64 to string
-const base64ToString = (base64: string): string => {
-  return atob(base64);
+// Convert base64 to bytes
+const base64ToBytes = (base64: string): Uint8Array => {
+  const binString = atob(base64);
+  return Uint8Array.from(binString, (m) => m.charCodeAt(0));
 };
 
 // Generate initialization vector
@@ -80,7 +82,7 @@ export const encryptApiKey = async (apiKey: string): Promise<string> => {
     combined.set(new Uint8Array(encrypted), iv.length);
 
     // Convert to base64 for storage
-    return stringToBase64(bytesToString(combined));
+    return bytesToBase64(combined);
   } catch (error) {
     console.error('Error encrypting API key:', error);
     throw new Error('Failed to encrypt API key');
@@ -93,7 +95,7 @@ export const decryptApiKey = async (encryptedData: string): Promise<string> => {
     const key = await deriveKey(getEncryptionKey());
     
     // Convert from base64 and separate IV and encrypted data
-    const combined = stringToBytes(base64ToString(encryptedData));
+    const combined = base64ToBytes(encryptedData);
     const iv = combined.slice(0, 12);
     const encrypted = combined.slice(12);
 

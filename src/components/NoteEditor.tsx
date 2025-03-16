@@ -33,7 +33,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
   useEffect(() => {
     if (note) {
-      setTitle(note.title);
+      setTitle(note.title || '');
       setContent(note.content);
     } else {
       setTitle('');
@@ -42,10 +42,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   }, [note]);
 
   const handleSave = async () => {
-    if (!title.trim()) {
+    if (!content.trim()) {
       toast({
-        title: "Title required",
-        description: "Please enter a title for your note.",
+        title: "Content required",
+        description: "Please enter some content for your note.",
         variant: "destructive"
       });
       return;
@@ -53,9 +53,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
     try {
       if (note) {
-        await updateNote(note.id, { title, content });
+        await updateNote(note.id, { title: title.trim() || undefined, content });
       } else {
-        await createNote({ title, content });
+        await createNote({ title: title.trim() || undefined, content });
       }
       toast({
         title: note ? "Note updated" : "Note created",
@@ -72,52 +72,40 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   };
 
   const handleFormat = (type: string) => {
-    if (!textareaRef.current) return;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return;
 
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.substring(start, end);
-    let newText = '';
-    let cursorOffset = 2;
+    const range = selection.getRangeAt(0);
+    const selectedText = selection.toString();
 
+    let formattedText = selectedText;
     switch (type) {
       case 'bold':
-        newText = `**${selectedText}**`;
+        formattedText = `**${selectedText}**`;
         break;
       case 'italic':
-        newText = `_${selectedText}_`;
-        cursorOffset = 1;
+        formattedText = `*${selectedText}*`;
         break;
       case 'heading':
-        newText = `# ${selectedText}`;
+        formattedText = `# ${selectedText}`;
         break;
       case 'quote':
-        newText = `> ${selectedText}`;
+        formattedText = `> ${selectedText}`;
         break;
       case 'code':
-        newText = `\`${selectedText}\``;
-        cursorOffset = 1;
+        formattedText = `\`${selectedText}\``;
         break;
       case 'link':
-        newText = `[${selectedText}](url)`;
-        cursorOffset = 1;
+        const url = prompt('Enter URL:', 'https://');
+        if (url) {
+          formattedText = `[${selectedText}](${url})`;
+        }
         break;
-      default:
-        return;
     }
 
-    const newContent = content.substring(0, start) + newText + content.substring(end);
+    const newContent = content.substring(0, range.startOffset) + formattedText + content.substring(range.endOffset);
     setContent(newContent);
-
-    // Restore cursor position
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(
-        start + cursorOffset,
-        end + cursorOffset
-      );
-    }, 0);
+    selection.removeAllRanges();
   };
 
   const handleAddImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,7 +192,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Note title..."
+              placeholder="Note title (optional)..."
               className="text-xl font-medium bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 w-[300px] placeholder:text-muted-foreground/50"
             />
           </div>

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { saveNotesToLocalStorage, loadNotesFromLocalStorage, downloadNotesAsMarkdown, metadataDB } from '@/utils/markdownStorage';
+import { format } from 'date-fns';
 
 export interface Tag {
   id: string;
@@ -10,7 +11,7 @@ export interface Tag {
 
 export interface Note {
   id: string;
-  title: string;
+  title?: string;
   content: string;
   contentType: 'text' | 'image' | 'link' | 'audio' | 'video';
   createdAt: Date;
@@ -22,6 +23,11 @@ export interface Note {
   connections?: string[]; // IDs of explicitly connected notes
   mentions?: string[]; // IDs of mentioned notes
 }
+
+// Helper function to generate default title
+const generateDefaultTitle = (date: Date = new Date()): string => {
+  return `Note ${format(date, "MMM d, yyyy 'at' h:mm a")}`;
+};
 
 interface NotesContextType {
   notes: Note[];
@@ -144,6 +150,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newNote: Note = {
       ...note,
       id: uuidv4(),
+      title: note.title || generateDefaultTitle(now),
       createdAt: now,
       updatedAt: now,
       connections: [],

@@ -64,6 +64,16 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onReset, onChange }) =
     onReset();
   };
 
+  const handleTagSelect = (tagId: string) => {
+    setSelectedTags(prev => {
+      const newTags = prev.includes(tagId)
+        ? prev.filter(t => t !== tagId)
+        : [...prev, tagId];
+      return newTags;
+    });
+    setTagsOpen(true); // Keep the popover open after selection
+  };
+
   return (
     <div className="p-4 space-y-4">
       <div className="flex gap-4">
@@ -136,21 +146,16 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onReset, onChange }) =
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-full p-0">
+          <PopoverContent className="w-full p-0" align="start">
             <Command>
               <CommandInput placeholder="Search tags..." />
               <CommandEmpty>No tags found.</CommandEmpty>
-              <CommandGroup>
+              <CommandGroup heading="Available Tags">
                 {tags.map(tag => (
                   <CommandItem
                     key={tag.id}
-                    onSelect={() => {
-                      setSelectedTags(prev =>
-                        prev.includes(tag.id)
-                          ? prev.filter(t => t !== tag.id)
-                          : [...prev, tag.id]
-                      );
-                    }}
+                    value={tag.id}
+                    onSelect={() => handleTagSelect(tag.id)}
                   >
                     <div className={`w-2 h-2 rounded-full ${tag.color} mr-2`} />
                     <span>{tag.label}</span>

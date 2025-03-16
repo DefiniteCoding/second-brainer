@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Bold, Italic, Heading1, Heading2, List, ListOrdered, Quote, Code, Link as LinkIcon } from 'lucide-react';
+import { Bold, Italic, Heading1, Quote, Code, Link as LinkIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface FloatingFormatToolbarProps {
-  onFormat: (type: string, selection: string) => void;
+  onFormat: (type: string) => void;
 }
 
 export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ onFormat }) => {
@@ -19,9 +19,11 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
         
+        if (rect.width === 0) return; // Don't show toolbar for empty selections
+        
         // Ensure the toolbar stays within viewport bounds
         const viewportWidth = window.innerWidth;
-        const toolbarWidth = 200; // Approximate width of the toolbar
+        const toolbarWidth = 320; // Adjusted width of the toolbar
         
         let left = rect.left + (rect.width / 2);
         // Adjust if too close to edges
@@ -29,7 +31,7 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
         if (left + toolbarWidth/2 > viewportWidth - 20) left = viewportWidth - toolbarWidth/2 - 20;
         
         setPosition({
-          top: Math.max(rect.top - 50 + window.scrollY, 70), // Ensure it doesn't go above the top bar
+          top: rect.top - 10 + window.scrollY,
           left
         });
         setIsVisible(true);
@@ -42,14 +44,10 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
     return () => document.removeEventListener('selectionchange', handleSelectionChange);
   }, []);
 
-  const handleFormat = (type: string) => {
-    const selection = window.getSelection();
-    if (selection && !selection.isCollapsed) {
-      setActiveButton(type);
-      onFormat(type, selection.toString());
-      // Reset active button after animation
-      setTimeout(() => setActiveButton(null), 500);
-    }
+  const handleFormatClick = (type: string) => {
+    setActiveButton(type);
+    onFormat(type);
+    setTimeout(() => setActiveButton(null), 200);
   };
 
   const formatButton = (type: string, icon: React.ReactNode, title: string) => (
@@ -59,7 +57,7 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
       className={`h-8 w-8 rounded-md transition-all duration-200 hover:scale-110 ${
         activeButton === type ? 'bg-primary text-primary-foreground' : ''
       }`}
-      onClick={() => handleFormat(type)}
+      onClick={() => handleFormatClick(type)}
       title={title}
     >
       {icon}
@@ -73,7 +71,7 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.1 }}
           className="fixed z-50 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg p-1.5 flex gap-1"
           style={{
             top: `${position.top}px`,
@@ -82,30 +80,22 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
           }}
         >
           <div className="flex items-center gap-1 px-1 rounded-md bg-muted/50">
-            {formatButton('bold', <Bold className="h-4 w-4" />, 'Bold (⌘B)')}
-            {formatButton('italic', <Italic className="h-4 w-4" />, 'Italic (⌘I)')}
+            {formatButton('bold', <Bold className="h-4 w-4" />, 'Bold')}
+            {formatButton('italic', <Italic className="h-4 w-4" />, 'Italic')}
           </div>
 
           <div className="w-px h-8 bg-border/50" />
 
           <div className="flex items-center gap-1 px-1 rounded-md bg-muted/50">
-            {formatButton('h1', <Heading1 className="h-4 w-4" />, 'Heading 1 (⌘1)')}
-            {formatButton('h2', <Heading2 className="h-4 w-4" />, 'Heading 2 (⌘2)')}
+            {formatButton('heading', <Heading1 className="h-4 w-4" />, 'Heading')}
+            {formatButton('quote', <Quote className="h-4 w-4" />, 'Quote')}
           </div>
 
           <div className="w-px h-8 bg-border/50" />
 
           <div className="flex items-center gap-1 px-1 rounded-md bg-muted/50">
-            {formatButton('ul', <List className="h-4 w-4" />, 'Bullet List (⌘⇧8)')}
-            {formatButton('ol', <ListOrdered className="h-4 w-4" />, 'Numbered List (⌘⇧7)')}
-          </div>
-
-          <div className="w-px h-8 bg-border/50" />
-
-          <div className="flex items-center gap-1 px-1 rounded-md bg-muted/50">
-            {formatButton('quote', <Quote className="h-4 w-4" />, 'Quote (⌘⇧9)')}
-            {formatButton('code', <Code className="h-4 w-4" />, 'Code (⌘E)')}
-            {formatButton('link', <LinkIcon className="h-4 w-4" />, 'Link (⌘K)')}
+            {formatButton('code', <Code className="h-4 w-4" />, 'Code')}
+            {formatButton('link', <LinkIcon className="h-4 w-4" />, 'Link')}
           </div>
         </motion.div>
       )}
