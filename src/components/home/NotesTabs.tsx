@@ -80,7 +80,7 @@ const NotesTabs: React.FC<NotesTabsProps> = (props) => {
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
-      <div className="space-y-4 px-4 pt-4">
+      <div className="space-y-4 p-4">
         <Button 
           onClick={onAddNote}
           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2"
@@ -89,7 +89,7 @@ const NotesTabs: React.FC<NotesTabsProps> = (props) => {
           Add Note
         </Button>
 
-        <TabsList className="bg-muted/50 p-1 rounded-lg w-full">
+        <TabsList className="bg-muted/50 p-2 rounded-lg w-full">
           <TabsTrigger 
             value="all" 
             className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm transition-all"
@@ -114,8 +114,8 @@ const NotesTabs: React.FC<NotesTabsProps> = (props) => {
         </TabsList>
       </div>
       
-      <div className="flex-1 min-h-0 px-4">
-        <ScrollArea className="h-[calc(100vh-340px)]">
+      <div className="flex-1 min-h-0 px-4 pb-4">
+        <ScrollArea className="h-full">
           <div className="pr-4">
             <NotesTabsContent {...props} />
           </div>

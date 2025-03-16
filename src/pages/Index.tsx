@@ -125,7 +125,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="h-screen flex flex-col">
       <SearchBar 
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -137,12 +137,13 @@ const Index = () => {
       <div className="flex-1">
         <ResizablePanelGroup 
           direction="horizontal" 
-          className="min-h-[calc(100vh-4rem)] scroll-smooth"
+          className="h-full"
         >
           <ResizablePanel 
-            defaultSize={25} 
-            minSize={15} 
-            maxSize={40}
+            defaultSize={30} 
+            minSize={25} 
+            maxSize={45}
+            className="min-w-[350px]"
           >
             <div className="h-full">
               <NotesTabs
@@ -161,7 +162,7 @@ const Index = () => {
           <ResizableHandle withHandle className="w-1.5 bg-muted/80 hover:bg-muted transition-colors" />
           
           <ResizablePanel 
-            defaultSize={75} 
+            defaultSize={70} 
             minSize={30}
           >
             <div className="h-full">
