@@ -1,14 +1,14 @@
-
 import React, { useState } from 'react';
-import { Note, useNotes } from '@/contexts/NotesContext';
+import { Note } from '@/contexts/NotesContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Lightbulb, Tag, Check, X, RotateCcw, Link } from 'lucide-react';
-import { hasApiKey } from '@/utils/aiService';
+import { Sparkles, Lightbulb, Tag, Check, X, RotateCcw, Link, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import * as aiService from '@/utils/aiService';
+import { hasApiKey } from '@/services/ai';
+import { SummaryOptions } from '@/types/ai.types';
+import * as aiService from '@/services/ai';
 
 interface AIEnhanceProps {
   note: Note;
