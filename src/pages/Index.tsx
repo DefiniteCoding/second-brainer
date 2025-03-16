@@ -94,7 +94,7 @@ const Index = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       <SearchBar 
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -104,7 +104,7 @@ const Index = () => {
         onAddNote={handleAddNote}
       />
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex overflow-hidden relative pt-[3.5rem]">
         <ResizablePanelGroup 
           direction="horizontal" 
           className="h-full w-full"
@@ -115,7 +115,7 @@ const Index = () => {
             maxSize={45}
             className="min-w-[350px]"
           >
-            <div className="h-full">
+            <div className="h-full overflow-hidden">
               <NotesTabs
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
@@ -135,7 +135,7 @@ const Index = () => {
             defaultSize={70} 
             minSize={30}
           >
-            <div className="h-full">
+            <div className="h-full overflow-hidden">
               <NoteDetailView
                 selectedNote={selectedNote}
                 isLoading={isLoading}

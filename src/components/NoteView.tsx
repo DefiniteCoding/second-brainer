@@ -128,9 +128,9 @@ const NoteView: React.FC<NoteViewProps> = ({
     >
       <motion.div
         variants={fadeIn}
-        className="flex items-center justify-between border-b px-4 py-3"
+        className="flex items-center justify-between border-b px-4 py-3 bg-gradient-to-b from-background to-muted/20"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
@@ -139,7 +139,11 @@ const NoteView: React.FC<NoteViewProps> = ({
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <h2 className="text-lg font-semibold">{note.title}</h2>
+          <div>
+            <h2 className="text-xl font-semibold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+              {note.title}
+            </h2>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
@@ -147,9 +151,10 @@ const NoteView: React.FC<NoteViewProps> = ({
             variant="ghost"
             size="icon"
             onClick={() => setShowAIEnhance(!showAIEnhance)}
-            className="rounded-full hover:bg-muted"
+            className={`rounded-full hover:bg-muted ${showAIEnhance ? 'bg-primary/10 text-primary' : ''}`}
+            title={showAIEnhance ? 'Hide AI Insights' : 'Show AI Insights'}
           >
-            <Sparkles className="h-4 w-4 text-indigo-500" />
+            <Sparkles className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -181,6 +186,22 @@ const NoteView: React.FC<NoteViewProps> = ({
               <span>•</span>
               <span>Updated {formatDate(note.updatedAt)}</span>
             </div>
+
+            <AnimatePresence>
+              {showAIEnhance && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="rounded-lg border bg-card p-4 shadow-sm">
+                    <AIEnhance note={note} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
             
             <div className="rounded-lg bg-muted/30 p-6">
               <ReactMarkdown
@@ -190,8 +211,6 @@ const NoteView: React.FC<NoteViewProps> = ({
                 {note.content}
               </ReactMarkdown>
             </div>
-            
-            {showAIEnhance && <AIEnhance note={note} />}
             
             <BacklinksSection backlinks={backlinks} />
           </div>

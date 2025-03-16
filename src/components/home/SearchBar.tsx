@@ -81,19 +81,32 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search notes..."
-                className="w-full pl-10 pr-4 h-10 bg-muted/50 border-muted-foreground/20 rounded-lg"
+                className="w-full pl-10 pr-24 h-10 bg-muted/50 border-muted-foreground/20 rounded-lg"
               />
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-              {searchTerm && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground/50 hover:text-foreground"
-                  onClick={() => setSearchTerm('')}
+                  onClick={() => setAdvancedSearchActive(!advancedSearchActive)}
+                  className={`h-7 w-7 rounded-full transition-colors ${
+                    advancedSearchActive ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'hover:bg-muted/80'
+                  }`}
+                  title={advancedSearchActive ? 'Disable AI Search' : 'Enable AI Search'}
                 >
-                  <X className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4" />
                 </Button>
-              )}
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground/50 hover:text-foreground rounded-full"
+                    onClick={() => setSearchTerm('')}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -106,20 +119,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
             >
               <Plus className="h-4 w-4" />
               Add Note
-            </Button>
-
-            <Button
-              variant={advancedSearchActive ? "default" : "outline"}
-              size="sm"
-              onClick={() => setAdvancedSearchActive(!advancedSearchActive)}
-              className={`${
-                advancedSearchActive 
-                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  : 'hover:bg-muted/80'
-              }`}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Advanced
             </Button>
 
             <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
@@ -174,16 +173,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
       {advancedSearchActive && (
         <Card className="mx-auto max-w-3xl mt-2 mb-4 animate-in fade-in-50 shadow-lg">
           <CardContent className="pt-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Advanced Search</h3>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setAdvancedSearchActive(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
             <SearchWrapper onNoteSelected={onNoteSelected} />
           </CardContent>
         </Card>
