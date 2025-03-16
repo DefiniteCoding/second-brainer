@@ -50,77 +50,78 @@ export const FloatingAIButton = () => {
     try {
       setIsProcessing(true);
       
-      // First pass: Extract keywords and concepts
-      const noteAnalysis = await Promise.all(notes.map(async (note) => {
+      // Process notes one at a time to avoid race conditions
+      for (const note of notes) {
         try {
+          // Extract keywords and concepts
           const [keywordsResponse, relatedConceptsResponse] = await Promise.all([
             extractKeywords(note.content),
             findRelatedNotes(note.content)
           ]);
 
-          return {
-            noteId: note.id,
-            keywords: keywordsResponse.success ? keywordsResponse.data?.keywords || [] : [],
-            concepts: relatedConceptsResponse.success ? relatedConceptsResponse.data?.concepts || [] : []
-          };
+          const keywords = keywordsResponse.success ? keywordsResponse.data?.keywords || [] : [];
+          const concepts = relatedConceptsResponse.success ? relatedConceptsResponse.data?.concepts || [] : [];
+
+          // Create tags for keywords
+          const noteTags = [];
+          for (const keyword of keywords) {
+            try {
+              const tagId = addTag({
+                name: keyword,
+                color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+              });
+              if (tagId) {
+                noteTags.push({
+                  id: tagId,
+                  name: keyword,
+                  color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+                });
+              }
+            } catch (error) {
+              console.error(`Failed to create tag for keyword ${keyword}:`, error);
+            }
+          }
+
+          // Update note with new tags and concepts
+          try {
+            await updateNote(note.id, {
+              ...note,
+              tags: [...(note.tags || []), ...noteTags],
+              concepts: concepts
+            });
+          } catch (error) {
+            console.error(`Failed to update note ${note.id} with tags:`, error);
+            throw error;
+          }
+
+          // Find and update connections
+          if (concepts.length > 0) {
+            const relatedNoteIds = notes
+              .filter(other => other.id !== note.id && other.concepts?.length > 0)
+              .map(other => ({
+                id: other.id,
+                similarity: calculateConceptSimilarity(concepts, other.concepts || [])
+              }))
+              .filter(relation => relation.similarity > 0.3)
+              .map(relation => relation.id);
+
+            if (relatedNoteIds.length > 0) {
+              try {
+                await updateNote(note.id, {
+                  ...note,
+                  connections: [...new Set([...(note.connections || []), ...relatedNoteIds])]
+                });
+              } catch (error) {
+                console.error(`Failed to update connections for note ${note.id}:`, error);
+              }
+            }
+          }
         } catch (error) {
-          console.error(`Failed to analyze note ${note.id}:`, error);
-          return { noteId: note.id, keywords: [], concepts: [] };
-        }
-      }));
-
-      // Create tags for all unique keywords
-      const allKeywords = new Set(noteAnalysis.flatMap(analysis => analysis.keywords));
-      const keywordToTagId = new Map();
-
-      for (const keyword of allKeywords) {
-        const tagId = addTag({
-          name: keyword,
-          color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
-        });
-        keywordToTagId.set(keyword, tagId);
-      }
-
-      // Second pass: Update notes with tags and store concepts
-      for (const analysis of noteAnalysis) {
-        const note = notes.find(n => n.id === analysis.noteId);
-        if (!note) continue;
-
-        const noteTags = analysis.keywords
-          .map(keyword => ({
-            id: keywordToTagId.get(keyword),
-            name: keyword,
-            color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
-          }))
-          .filter(tag => tag.id); // Only include tags that were successfully created
-
-        await updateNote(note.id, {
-          ...note,
-          tags: [...(note.tags || []), ...noteTags],
-          concepts: analysis.concepts
-        });
-      }
-
-      // Third pass: Build relationships based on concept similarity
-      for (const analysis of noteAnalysis) {
-        if (!analysis.concepts.length) continue;
-
-        const currentNote = notes.find(n => n.id === analysis.noteId);
-        if (!currentNote) continue;
-
-        const relatedNotes = noteAnalysis
-          .filter(other => other.noteId !== analysis.noteId)
-          .map(other => ({
-            id: other.noteId,
-            similarity: calculateConceptSimilarity(analysis.concepts, other.concepts)
-          }))
-          .filter(relation => relation.similarity > 0.3)
-          .map(relation => relation.id);
-
-        if (relatedNotes.length > 0) {
-          await updateNote(currentNote.id, {
-            ...currentNote,
-            connections: [...new Set([...(currentNote.connections || []), ...relatedNotes])]
+          console.error(`Failed to process note ${note.id}:`, error);
+          toast({
+            title: "Note Processing Failed",
+            description: `Failed to process note "${note.title}". Continuing with remaining notes.`,
+            variant: "destructive"
           });
         }
       }
@@ -217,26 +218,50 @@ export const FloatingAIButton = () => {
       setIsProcessing(true);
       
       const selectedSuggestions = suggestedTitles.filter(s => selectedNotes.has(s.noteId));
+      let successCount = 0;
       
-      await Promise.all(selectedSuggestions.map(async (suggestion) => {
-        const note = notes.find(n => n.id === suggestion.noteId);
-        if (!note) return;
+      // Process title updates sequentially
+      for (const suggestion of selectedSuggestions) {
+        try {
+          const note = notes.find(n => n.id === suggestion.noteId);
+          if (!note) {
+            console.error(`Note ${suggestion.noteId} not found`);
+            continue;
+          }
 
-        await updateNote(note.id, {
-          ...note,
-          title: suggestion.newTitle
+          await updateNote(note.id, {
+            ...note,
+            title: suggestion.newTitle
+          });
+          
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to update title for note ${suggestion.noteId}:`, error);
+          toast({
+            title: "Update Failed",
+            description: `Failed to update title for "${suggestion.oldTitle}". Continuing with remaining notes.`,
+            variant: "destructive"
+          });
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Titles Updated",
+          description: `Successfully updated ${successCount} out of ${selectedSuggestions.length} titles.`,
         });
-      }));
-
-      toast({
-        title: "Titles Updated",
-        description: `Updated titles for ${selectedSuggestions.length} notes.`,
-      });
+      } else {
+        toast({
+          title: "Update Failed",
+          description: "No titles were updated. Please try again.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Error updating titles:', error);
       toast({
         title: "Update Failed",
-        description: "Some titles could not be updated. Please try again.",
+        description: "Failed to update titles. Please try again.",
         variant: "destructive"
       });
     } finally {
