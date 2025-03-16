@@ -2,42 +2,57 @@ import { Note } from '@/contexts/NotesContext';
 import { AIResponse } from '@/types/ai.types';
 import { callGeminiApi } from '../api/geminiApi';
 
-export const findRelatedNotes = async (content: string): Promise<AIResponse> => {
+export const findRelatedNotes = async (
+  currentNote: Note,
+  allNotes: Note[]
+): Promise<AIResponse> => {
   try {
+    // Extract a list of other note titles and snippets
+    const otherNotes = allNotes
+      .filter(note => note.id !== currentNote.id)
+      .map(note => ({
+        id: note.id,
+        title: note.title,
+        snippet: note.content.substring(0, 200) + (note.content.length > 200 ? '...' : '')
+      }));
+
     const prompt = `
-      Analyze this text and identify key concepts, themes, and topics that could be used to find related content.
-      Return only a JSON array of keywords and phrases that capture the main ideas.
+      I have a note with the following title and content:
+      Title: ${currentNote.title}
+      Content: ${currentNote.content.substring(0, 2000)}${currentNote.content.length > 2000 ? '...' : ''}
       
-      Text to analyze:
-      ${content}
+      And I have these other notes (id, title, and snippet):
+      ${otherNotes.map((note, i) => `${i+1}. ID: ${note.id}, Title: "${note.title}", Snippet: "${note.snippet}"`).join('\n')}
+      
+      Which of these other notes are most semantically related to my current note?
+      Return only a JSON array of IDs for the most related notes, with no additional text.
+      Only include notes that have a meaningful connection.
     `;
 
     const data = await callGeminiApi(prompt, { temperature: 0.1 });
     const relatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!relatedText) {
-      return { error: 'No related concepts found' };
+      return { error: 'No related notes found' };
     }
 
+    // Parse the JSON array from the response
     try {
       const cleanedText = relatedText.replace(/```json|```/g, '').trim();
-      const concepts = JSON.parse(cleanedText);
-      return { concepts };
+      const suggestedConnections = JSON.parse(cleanedText);
+      return { suggestedConnections };
     } catch (parseError) {
-      console.error('Error parsing concepts:', parseError, relatedText);
+      console.error('Error parsing related notes:', parseError, relatedText);
       
-      // Fallback: Try to extract concepts even if not valid JSON
-      const extractedConcepts = relatedText
-        .replace(/["'\[\]\{\}]/g, '')
-        .split(/,|\n/)
-        .map(k => k.trim())
-        .filter(k => k && k.length > 1);
+      // Fallback: Try to extract note IDs even if not valid JSON
+      const extractedIds = relatedText
+        .match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g) || [];
       
-      return { concepts: extractedConcepts };
+      return { suggestedConnections: extractedIds };
     }
 
   } catch (error) {
-    console.error('Error finding related concepts:', error);
-    return { error: error instanceof Error ? error.message : 'An error occurred while finding related concepts' };
+    console.error('Error finding related notes:', error);
+    return { error: error instanceof Error ? error.message : 'An error occurred while finding related notes' };
   }
 }; 
