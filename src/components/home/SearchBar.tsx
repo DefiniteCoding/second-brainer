@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Settings, Network, Tags, Upload, Sparkles, Brain, X } from 'lucide-react';
+import { Search, Settings, Network, Tags, Upload, Sparkles, Brain, X, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { 
   DropdownMenu,
@@ -24,6 +24,7 @@ interface SearchBarProps {
   advancedSearchActive: boolean;
   setAdvancedSearchActive: (value: boolean) => void;
   onNoteSelected: (note: Note) => void;
+  onAddNote: () => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ 
@@ -31,14 +32,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
   setSearchTerm, 
   advancedSearchActive, 
   setAdvancedSearchActive,
-  onNoteSelected
+  onNoteSelected,
+  onAddNote
 }) => {
   const navigate = useNavigate();
   const [showAISettings, setShowAISettings] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
   const [showDataManager, setShowDataManager] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
@@ -65,61 +66,113 @@ const SearchBar: React.FC<SearchBarProps> = ({
       } transition-all duration-200`}
     >
       <div className="container mx-auto py-3 px-4">
-        <div className="flex items-center gap-4 max-w-3xl mx-auto">
-          <div className={`relative flex-1 group ${isFocused ? 'ring-2 ring-primary/20 rounded-lg' : ''}`}>
-            <motion.div
-              initial={false}
-              animate={{ scale: isFocused ? 1.02 : 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="relative"
-            >
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Brain className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-semibold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
+              Second Brainer
+            </h1>
+          </div>
+
+          <div className="flex-1 max-w-2xl mx-4">
+            <div className="relative">
               <Input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
                 placeholder="Search notes..."
-                className={`pl-10 pr-4 h-11 bg-muted/50 border-muted-foreground/20 rounded-lg transition-all duration-200 ${
-                  isFocused ? 'bg-background border-primary/30 shadow-lg shadow-primary/5' : ''
-                } placeholder:text-muted-foreground/50`}
+                className="w-full pl-10 pr-4 h-10 bg-muted/50 border-muted-foreground/20 rounded-lg"
               />
-              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-200 ${
-                isFocused ? 'text-primary' : 'text-muted-foreground/50'
-              }`} />
-              <AnimatePresence>
-                {searchTerm && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </motion.button>
-                )}
-              </AnimatePresence>
-            </motion.div>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+              {searchTerm && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground/50 hover:text-foreground"
+                  onClick={() => setSearchTerm('')}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
-          <Button
-            variant={advancedSearchActive ? "default" : "outline"}
-            size="icon"
-            onClick={() => setAdvancedSearchActive(!advancedSearchActive)}
-            className={`rounded-lg h-11 w-11 transition-all duration-200 ${
-              advancedSearchActive 
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'hover:bg-muted/80 hover:text-foreground'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onAddNote}
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-600 hover:to-purple-600 flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Note
+            </Button>
+
+            <Button
+              variant={advancedSearchActive ? "default" : "outline"}
+              size="sm"
+              onClick={() => setAdvancedSearchActive(!advancedSearchActive)}
+              className={`${
+                advancedSearchActive 
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  : 'hover:bg-muted/80'
+              }`}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Advanced
+            </Button>
+
+            <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => {
+                  setShowAISettings(true);
+                  setDropdownOpen(false);
+                }}>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  setShowTagManager(true);
+                  setDropdownOpen(false);
+                }}>
+                  <Tags className="h-4 w-4 mr-2" />
+                  Tag Manager
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  setShowDataManager(true);
+                  setDropdownOpen(false);
+                }}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import/Export
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/graph')}
+              className="flex items-center gap-2"
+            >
+              <Network className="h-4 w-4 text-indigo-500" />
+              Graph
+            </Button>
+          </div>
         </div>
       </div>
 
       {advancedSearchActive && (
-        <Card className="animate-fade-in shadow-md backdrop-blur-sm bg-background/50">
+        <Card className="mx-auto max-w-3xl mt-2 mb-4 animate-in fade-in-50 shadow-lg">
           <CardContent className="pt-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Advanced Search</h3>
@@ -128,62 +181,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 size="icon"
                 onClick={() => setAdvancedSearchActive(false)}
               >
-                <span className="sr-only">Close</span>
-                &times;
+                <X className="h-4 w-4" />
               </Button>
             </div>
             <SearchWrapper onNoteSelected={onNoteSelected} />
           </CardContent>
         </Card>
       )}
-
-      <div className="flex gap-2">
-        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 h-10 shadow-sm hover:bg-background/60 dark:hover:bg-background/20 backdrop-blur-sm transition-all border-muted/50"
-              title="Settings"
-            >
-              <Settings className="h-4 w-4 text-slate-600" />
-              <span className="hidden lg:inline">Settings</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 bg-background/80 backdrop-blur-md">
-            <DropdownMenuItem onClick={() => {
-              setShowAISettings(true);
-              setDropdownOpen(false);
-            }}>
-              <Sparkles className="h-4 w-4 mr-2" />
-              AI Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {
-              setShowTagManager(true);
-              setDropdownOpen(false);
-            }}>
-              <Tags className="h-4 w-4 mr-2" />
-              Tag Manager
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {
-              setShowDataManager(true);
-              setDropdownOpen(false);
-            }}>
-              <Upload className="h-4 w-4 mr-2" />
-              Import/Export
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2 h-10 shadow-sm hover:bg-background/60 dark:hover:bg-background/20 backdrop-blur-sm transition-all border-muted/50"
-          onClick={() => navigate('/graph')}
-          title="Knowledge Graph"
-        >
-          <Network className="h-4 w-4 text-indigo-500" /> 
-          <span className="hidden lg:inline">Graph</span>
-        </Button>
-      </div>
 
       {showAISettings && (
         <AISettings 

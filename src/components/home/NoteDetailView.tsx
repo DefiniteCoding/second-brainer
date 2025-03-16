@@ -32,6 +32,7 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
   const [content, setContent] = useState(selectedNote?.content || '');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const {
     isRecording,
@@ -163,7 +164,7 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
   }, [recordingError, toast]);
 
   const handleFormat = (type: string, selection: string) => {
-    const textarea = document.querySelector('textarea');
+    const textarea = textareaRef.current;
     if (!textarea) return;
 
     const start = textarea.selectionStart;
@@ -231,7 +232,7 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
       textarea.focus();
       textarea.setSelectionRange(
         newCursorPosition,
-        newCursorPosition + selection.length
+        newCursorPosition + selection.length + (type === 'link' ? 4 : 2)
       );
     }, 0);
   };
@@ -343,6 +344,7 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
             <div className="space-y-4">
               <div className="relative">
                 <Textarea
+                  ref={textareaRef}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Start writing your note..."

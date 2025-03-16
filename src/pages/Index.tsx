@@ -88,6 +88,11 @@ const Index = () => {
     navigate('/', { replace: true });
   };
 
+  const handleAddNote = () => {
+    setSelectedNote(null);
+    navigate('/', { replace: true });
+  };
+
   return (
     <div className="h-screen flex flex-col">
       <SearchBar 
@@ -96,6 +101,7 @@ const Index = () => {
         advancedSearchActive={advancedSearchActive}
         setAdvancedSearchActive={setAdvancedSearchActive}
         onNoteSelected={handleNoteSelected}
+        onAddNote={handleAddNote}
       />
 
       <div className="flex-1 flex">
@@ -118,7 +124,7 @@ const Index = () => {
                 selectedNoteId={selectedNote?.id}
                 onNoteClick={handleNoteSelected}
                 isLoading={isLoading}
-                onAddNote={() => setSelectedNote(null)}
+                onAddNote={handleAddNote}
               />
             </div>
           </ResizablePanel>
