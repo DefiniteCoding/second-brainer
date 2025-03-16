@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { BookOpen, Image as ImageIcon, Link as LinkIcon, Mic, Send, X } from 'lucide-react';
+import { BookOpen, Image as ImageIcon, Link as LinkIcon, Mic, Send, X, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import NoteView from '@/components/NoteView';
+import { uploadFile, validateFileSize, validateImageType } from '@/lib/fileUpload';
+import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
+import { useToast } from '@/components/ui/use-toast';
 
 interface NoteDetailViewProps {
   selectedNote: Note | null;
@@ -21,39 +24,128 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
   onDelete
 }) => {
   const { createNote, updateNote } = useNotes();
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(!selectedNote);
   const [title, setTitle] = useState(selectedNote?.title || '');
   const [content, setContent] = useState(selectedNote?.content || '');
-  const [isRecording, setIsRecording] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const {
+    isRecording,
+    audioURL,
+    error: recordingError,
+    startRecording,
+    stopRecording,
+    resetRecording
+  } = useVoiceRecorder();
 
   const handleSave = async () => {
-    if (selectedNote) {
-      await updateNote(selectedNote.id, { title, content });
-    } else {
-      await createNote({ title, content });
+    if (!title.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please enter a title for your note.",
+        variant: "destructive"
+      });
+      return;
     }
-    setIsEditing(false);
+
+    try {
+      if (selectedNote) {
+        await updateNote(selectedNote.id, { title, content });
+      } else {
+        await createNote({ title, content });
+      }
+      setIsEditing(false);
+      toast({
+        title: selectedNote ? "Note updated" : "Note created",
+        description: `Your note has been ${selectedNote ? 'updated' : 'created'} successfully.`
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save note. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleAddImage = () => {
-    // TODO: Implement image upload
-    const imageMarkdown = '![Image description](image-url)';
-    setContent(prev => prev + '\n' + imageMarkdown);
+  const handleAddImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!validateImageType(file)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!validateFileSize(file)) {
+      toast({
+        title: "File too large",
+        description: "Please select an image under 5MB.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const dataUrl = await uploadFile(file);
+      const imageMarkdown = `![${file.name}](${dataUrl})`;
+      setContent(prev => prev + (prev ? '\n\n' : '') + imageMarkdown);
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleAddLink = () => {
-    const linkMarkdown = '[Link text](url)';
-    setContent(prev => prev + '\n' + linkMarkdown);
-  };
-
-  const handleToggleRecording = () => {
-    setIsRecording(!isRecording);
-    // TODO: Implement voice recording
-    if (isRecording) {
-      const audioMarkdown = '🎤 [Audio recording](audio-url)';
-      setContent(prev => prev + '\n' + audioMarkdown);
+    const linkText = window.prompt('Enter link text:');
+    const url = window.prompt('Enter URL:');
+    
+    if (linkText && url) {
+      const linkMarkdown = `[${linkText}](${url})`;
+      setContent(prev => prev + (prev ? '\n\n' : '') + linkMarkdown);
     }
   };
+
+  const handleToggleRecording = async () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      await startRecording();
+    }
+  };
+
+  React.useEffect(() => {
+    if (audioURL) {
+      const audioMarkdown = `🎤 [Voice Recording](${audioURL})`;
+      setContent(prev => prev + (prev ? '\n\n' : '') + audioMarkdown);
+      resetRecording();
+    }
+  }, [audioURL]);
+
+  React.useEffect(() => {
+    if (recordingError) {
+      toast({
+        title: "Recording Error",
+        description: recordingError,
+        variant: "destructive"
+      });
+    }
+  }, [recordingError, toast]);
 
   if (isLoading) {
     return (
@@ -126,14 +218,26 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
               />
               
               <div className="flex gap-2 sticky bottom-0 bg-background/80 backdrop-blur-sm p-2 rounded-lg border">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handleAddImage}
+                  className="hidden"
+                />
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={handleAddImage}
+                  onClick={() => fileInputRef.current?.click()}
                   className="rounded-full"
                   title="Add Image"
+                  disabled={isUploading}
                 >
-                  <ImageIcon className="h-4 w-4" />
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-4 w-4" />
+                  )}
                 </Button>
                 <Button
                   variant="outline"
@@ -148,7 +252,7 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
                   variant="outline"
                   size="icon"
                   onClick={handleToggleRecording}
-                  className={`rounded-full ${isRecording ? 'bg-red-50 text-red-500' : ''}`}
+                  className={`rounded-full ${isRecording ? 'bg-red-50 text-red-500 animate-pulse' : ''}`}
                   title="Record Voice"
                 >
                   <Mic className="h-4 w-4" />

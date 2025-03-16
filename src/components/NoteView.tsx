@@ -10,6 +10,8 @@ import ProgressiveSummary from './notes/ProgressiveSummary';
 import NoteContentRenderer from './notes/NoteContentRenderer';
 import BacklinksSection from './notes/BacklinksSection';
 import AIEnhance from './notes/AIEnhance';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface NoteViewProps {
   note: Note;
@@ -74,6 +76,46 @@ const NoteView: React.FC<NoteViewProps> = ({
     }
   };
 
+  const renderAudio = (url: string) => {
+    if (url.startsWith('data:audio')) {
+      return (
+        <div className="my-4">
+          <audio controls className="w-full">
+            <source src={url} type="audio/webm" />
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      );
+    }
+    return <a href={url} target="_blank" rel="noopener noreferrer">Audio Recording</a>;
+  };
+
+  const components = {
+    img: ({ src, alt }: { src?: string; alt?: string }) => (
+      <img 
+        src={src} 
+        alt={alt} 
+        className="max-w-full h-auto rounded-lg shadow-md my-4" 
+        loading="lazy"
+      />
+    ),
+    a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
+      if (href?.startsWith('data:audio')) {
+        return renderAudio(href);
+      }
+      return (
+        <a 
+          href={href} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:text-blue-700 underline"
+        >
+          {children}
+        </a>
+      );
+    },
+  };
+
   return (
     <Card className="border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden h-full">
       <CardHeader className="bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 py-4">
@@ -107,7 +149,12 @@ const NoteView: React.FC<NoteViewProps> = ({
               <ProgressiveSummary progressiveMode={progressiveMode} onProgressiveModeChange={setProgressiveMode} />
             </div>
             
-            <NoteContentRenderer note={note} processedContent={parsedContent} progressiveMode={progressiveMode} />
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={components}
+            >
+              {note.content}
+            </ReactMarkdown>
             
             {showAIEnhance && <AIEnhance note={note} />}
             
