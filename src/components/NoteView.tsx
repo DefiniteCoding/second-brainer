@@ -3,7 +3,7 @@ import { Note, useNotes } from '@/contexts/NotesContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash, Sparkles } from 'lucide-react';
+import { ArrowLeft, Edit, Trash, Sparkles, ChevronLeft, Trash2, Edit3 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import FormattingToolbar from './notes/FormattingToolbar';
 import ProgressiveSummary from './notes/ProgressiveSummary';
@@ -12,6 +12,8 @@ import BacklinksSection from './notes/BacklinksSection';
 import AIEnhance from './notes/AIEnhance';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { motion, AnimatePresence } from 'framer-motion';
+import { fadeIn, slideInRight } from '@/lib/animations';
 
 interface NoteViewProps {
   note: Note;
@@ -117,51 +119,85 @@ const NoteView: React.FC<NoteViewProps> = ({
   };
 
   return (
-    <Card className="border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden h-full">
-      <CardHeader className="bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 py-4">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full hover:bg-white/80 dark:hover:bg-slate-900/80">
-            <ArrowLeft className="h-4 w-4" />
+    <motion.div
+      variants={slideInRight}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      className="flex h-full flex-col overflow-hidden bg-background"
+    >
+      <motion.div
+        variants={fadeIn}
+        className="flex items-center justify-between border-b px-4 py-3"
+      >
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            className="rounded-full hover:bg-muted"
+          >
+            <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex gap-1 rounded-full border-indigo-200 hover:bg-indigo-50 dark:border-indigo-900 dark:hover:bg-indigo-950" onClick={() => setShowAIEnhance(!showAIEnhance)}>
-              <Sparkles className="h-4 w-4 text-indigo-500" />
-              <span>AI Enhance</span>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => onEdit(note)} className="rounded-full hover:bg-amber-50 text-amber-500 dark:hover:bg-amber-950">
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => onDelete(note.id)} className="rounded-full hover:bg-red-50 text-red-500 dark:hover:bg-red-950">
-              <Trash className="h-4 w-4" />
-            </Button>
-          </div>
+          <h2 className="text-lg font-semibold">{note.title}</h2>
         </div>
-        <CardTitle className="text-xl bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">{note.title}</CardTitle>
-        <CardDescription>
-          Created: {formatDate(note.createdAt)}
-          {note.createdAt.getTime() !== note.updatedAt.getTime() && ` • Updated: ${formatDate(note.updatedAt)}`}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="h-[calc(100vh-380px)]">
-          <div className="p-6">
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <ProgressiveSummary progressiveMode={progressiveMode} onProgressiveModeChange={setProgressiveMode} />
+        
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowAIEnhance(!showAIEnhance)}
+            className="rounded-full hover:bg-muted"
+          >
+            <Sparkles className="h-4 w-4 text-indigo-500" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onEdit(note)}
+            className="rounded-full hover:bg-muted"
+          >
+            <Edit3 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(note.id)}
+            className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </motion.div>
+
+      <ScrollArea className="flex-1 px-4">
+        <motion.div
+          variants={fadeIn}
+          className="prose prose-sm dark:prose-invert max-w-none py-6"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Created {formatDate(note.createdAt)}</span>
+              <span>•</span>
+              <span>Updated {formatDate(note.updatedAt)}</span>
             </div>
             
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm]}
-              components={components}
-            >
-              {note.content}
-            </ReactMarkdown>
+            <div className="rounded-lg bg-muted/30 p-6">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={components}
+              >
+                {note.content}
+              </ReactMarkdown>
+            </div>
             
             {showAIEnhance && <AIEnhance note={note} />}
             
             <BacklinksSection backlinks={backlinks} />
           </div>
-        </ScrollArea>
-      </CardContent>
+        </motion.div>
+      </ScrollArea>
+
       <CardFooter className="flex flex-wrap gap-1 border-t bg-slate-50/50 dark:bg-slate-900/50 py-3">
         {note.tags.map(tag => (
           <Badge 
@@ -173,7 +209,7 @@ const NoteView: React.FC<NoteViewProps> = ({
           </Badge>
         ))}
       </CardFooter>
-    </Card>
+    </motion.div>
   );
 };
 
