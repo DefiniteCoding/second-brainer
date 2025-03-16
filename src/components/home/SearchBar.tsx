@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +34,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const navigate = useNavigate();
 
   return (
-    <div className="relative mb-6">
+    <div className="relative">
       {advancedSearchActive ? (
         <Card className="animate-fade-in shadow-md">
           <CardContent className="pt-4">
