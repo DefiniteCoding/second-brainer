@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Settings, Network, Tags, Upload, Sparkles, Brain } from 'lucide-react';
@@ -35,10 +35,22 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const [showAISettings, setShowAISettings] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
   const [showDataManager, setShowDataManager] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 0);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-3 border-b">
-      <div className="relative px-4">
+    <div className={`sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b transition-shadow duration-200 ${
+      isScrolled ? 'shadow-md' : ''
+    }`}>
+      <div className="relative w-full max-w-[2000px] mx-auto px-4 py-2">
         {advancedSearchActive ? (
           <Card className="animate-fade-in shadow-md">
             <CardContent className="pt-4">
@@ -58,14 +70,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
           </Card>
         ) : (
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2 min-w-[140px]">
               <Brain className="h-5 w-5 text-indigo-500" />
               <span className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">
                 SecondBrainer
               </span>
             </div>
             <div className="flex flex-1 items-center gap-2">
-              <div className="relative flex-1">
+              <div className="relative flex-1 max-w-3xl">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                   placeholder="Search your notes..." 
@@ -82,7 +94,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                   title="Advanced Search"
                 >
                   <Search className="h-4 w-4 text-indigo-500" /> 
-                  <span className="hidden sm:inline">Advanced</span>
+                  <span className="hidden lg:inline">Advanced</span>
                 </Button>
                 
                 <DropdownMenu>
@@ -93,7 +105,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                       title="Settings"
                     >
                       <Settings className="h-4 w-4 text-slate-600" />
-                      <span className="hidden sm:inline">Settings</span>
+                      <span className="hidden lg:inline">Settings</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
@@ -119,7 +131,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                   title="Knowledge Graph"
                 >
                   <Network className="h-4 w-4 text-indigo-500" /> 
-                  <span className="hidden sm:inline">Graph</span>
+                  <span className="hidden lg:inline">Graph</span>
                 </Button>
               </div>
             </div>

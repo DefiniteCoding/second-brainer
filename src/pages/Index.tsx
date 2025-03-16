@@ -125,50 +125,57 @@ const Index = () => {
   };
 
   return (
-    <div className="animate-fade-in h-screen flex flex-col">
-      <div className="px-4 py-2 bg-background">
-        <SearchBar 
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          advancedSearchActive={advancedSearchActive}
-          setAdvancedSearchActive={setAdvancedSearchActive}
-          onNoteSelected={handleNoteSelected}
-        />
-      </div>
+    <div className="min-h-screen">
+      <SearchBar 
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        advancedSearchActive={advancedSearchActive}
+        setAdvancedSearchActive={setAdvancedSearchActive}
+        onNoteSelected={handleNoteSelected}
+      />
 
-      <ResizablePanelGroup 
-        direction="horizontal" 
-        className="flex-1 min-h-0 border my-2 mx-4"
-      >
-        <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
-          <div className="h-full">
-            <NotesTabs
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              filteredNotes={filteredNotes}
-              recentlyViewedNotes={recentlyViewedNotes}
-              selectedNoteId={selectedNote?.id}
-              onNoteClick={handleNoteSelected}
-              isLoading={isLoading}
-              onAddNote={() => openCaptureDialog()}
-            />
-          </div>
-        </ResizablePanel>
-        
-        <ResizableHandle withHandle className="w-1.5 bg-muted/80 hover:bg-muted transition-colors" />
-        
-        <ResizablePanel defaultSize={75} minSize={30}>
-          <div className="h-full">
-            <NoteDetailView
-              selectedNote={selectedNote}
-              isLoading={isLoading}
-              onBack={handleBackFromNote}
-              onEdit={() => selectedNote && openCaptureDialog(selectedNote)}
-              onDelete={handleOpenDeleteDialog}
-            />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+      <div className="flex-1">
+        <ResizablePanelGroup 
+          direction="horizontal" 
+          className="min-h-[calc(100vh-4rem)] scroll-smooth"
+        >
+          <ResizablePanel 
+            defaultSize={25} 
+            minSize={15} 
+            maxSize={40}
+          >
+            <div className="h-full">
+              <NotesTabs
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                filteredNotes={filteredNotes}
+                recentlyViewedNotes={recentlyViewedNotes}
+                selectedNoteId={selectedNote?.id}
+                onNoteClick={handleNoteSelected}
+                isLoading={isLoading}
+                onAddNote={() => openCaptureDialog()}
+              />
+            </div>
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle className="w-1.5 bg-muted/80 hover:bg-muted transition-colors" />
+          
+          <ResizablePanel 
+            defaultSize={75} 
+            minSize={30}
+          >
+            <div className="h-full">
+              <NoteDetailView
+                selectedNote={selectedNote}
+                isLoading={isLoading}
+                onBack={handleBackFromNote}
+                onEdit={() => selectedNote && openCaptureDialog(selectedNote)}
+                onDelete={handleOpenDeleteDialog}
+              />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
 
       <CaptureDialog
         open={captureDialogOpen}
