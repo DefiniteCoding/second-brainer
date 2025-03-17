@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNotes, Note, Tag } from '@/contexts/NotesContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ZoomIn, ZoomOut, Maximize, Radar, FolderTree, NetworkIcon, Search } from 'lucide-react';
+import { ArrowLeft, ZoomIn, ZoomOut, Maximize, Radar, FolderTree, NetworkIcon, Search, Filter, Trash } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -20,9 +20,13 @@ import {
   Panel,
   ReactFlowProvider,
   Node as ReactFlowNode,
-  Edge as ReactFlowEdge
+  Edge as ReactFlowEdge,
+  useReactFlow,
+  Position
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 // Interface for Flow Node Data that extends Note
 interface NodeData {
@@ -36,14 +40,14 @@ interface NodeData {
   source?: string;
   location?: { latitude: number; longitude: number };
   mediaUrl?: string;
-  connections: number; // Number of connections, not the actual string[] from Note
-  mentions: number; // Number of mentions, not the actual string[] from Note
-  [key: string]: unknown; // Index signature to satisfy Record<string, unknown>
+  connections: number; 
+  mentions: number;
+  showPreview?: boolean;
+  [key: string]: unknown;
 }
 
 // Type definitions
 type Node = ReactFlowNode<NodeData>;
-
 type Edge = ReactFlowEdge<{ type: 'connection' | 'mention' }>;
 
 // Node types
@@ -67,6 +71,73 @@ const contentTypeColors = {
   video: '#ef4444'  // red
 };
 
+// Custom Flow Node component
+const CustomNode = ({ data }: { data: NodeData }) => {
+  let bgColor = contentTypeColors[data.contentType || 'text'];
+  
+  // If note has tags, use the first tag's color
+  if (data.tags && data.tags.length > 0) {
+    bgColor = data.tags[0].color;
+  }
+  
+  return (
+    <div 
+      className={`px-2 py-1.5 rounded-md shadow-md border transition-all duration-200 hover:shadow-lg ${
+        data.showPreview ? 'w-[250px]' : 'w-auto max-w-[150px]'
+      }`} 
+      style={{ borderColor: bgColor, backgroundColor: 'var(--background)' }}
+    >
+      <div className="text-sm font-medium truncate">{data.title}</div>
+      
+      {data.showPreview && (
+        <div className="mt-1 text-xs text-muted-foreground line-clamp-3 overflow-hidden">
+          {data.content?.substring(0, 100)}...
+        </div>
+      )}
+      
+      <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: bgColor }}></span>
+        <span>{data.contentType}</span>
+        
+        {data.connections > 0 && (
+          <span className="ml-auto flex items-center gap-0.5">
+            <NetworkIcon className="h-3 w-3" /> {data.connections}
+          </span>
+        )}
+      </div>
+      
+      {data.tags && data.tags.length > 0 && data.showPreview && (
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {data.tags.slice(0, 3).map(tag => (
+            <Badge 
+              key={tag.id} 
+              variant="outline" 
+              className="text-[9px] py-0 h-4"
+              style={{ borderColor: tag.color, color: tag.color }}
+            >
+              {tag.name}
+            </Badge>
+          ))}
+        </div>
+      )}
+      
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        className="w-3 h-3 rounded-sm bg-muted-foreground/50" 
+      />
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        className="w-3 h-3 rounded-sm bg-muted-foreground/50" 
+      />
+    </div>
+  );
+};
+
+// Import the Handle component
+import { Handle } from '@xyflow/react';
+
 // Helper functions to generate graph layouts
 const generateForceDirectedLayout = (notes: Note[]): { nodes: Node[], edges: Edge[] } => {
   const centerX = window.innerWidth / 2;
@@ -85,10 +156,12 @@ const generateForceDirectedLayout = (notes: Note[]): { nodes: Node[], edges: Edg
         x: centerX + Math.cos(angle) * radius * spiralFactor, 
         y: centerY + Math.sin(angle) * radius * spiralFactor 
       },
+      type: 'default',
       data: {
         ...note,
         connections: note.connections?.length || 0,
-        mentions: note.mentions?.length || 0
+        mentions: note.mentions?.length || 0,
+        showPreview: false
       }
     };
   });
@@ -105,6 +178,7 @@ const generateForceDirectedLayout = (notes: Note[]): { nodes: Node[], edges: Edg
           source: note.id,
           target: connId,
           animated: false,
+          style: { stroke: '#666', strokeWidth: 2 },
           markerEnd: { type: MarkerType.ArrowClosed },
           data: { type: 'connection' }
         });
@@ -119,6 +193,7 @@ const generateForceDirectedLayout = (notes: Note[]): { nodes: Node[], edges: Edg
           source: note.id,
           target: mentionId,
           animated: true,
+          style: { stroke: '#999', strokeWidth: 1, strokeDasharray: '5 5' },
           data: { type: 'mention' }
         });
       });
@@ -210,7 +285,6 @@ const generateCircularLayout = (notes: Note[]): { nodes: Node[], edges: Edge[] }
 };
 
 const generateTreeLayout = (notes: Note[]): { nodes: Node[], edges: Edge[] } => {
-  // Find root nodes (nodes with most connections)
   const nodesToConnections = notes.map(note => ({
     noteId: note.id,
     connectionCount: (note.connections?.length || 0) + (note.mentions?.length || 0)
@@ -347,26 +421,6 @@ const generateTreeLayout = (notes: Note[]): { nodes: Node[], edges: Edge[] } => 
   return { nodes: allNodes, edges };
 };
 
-// Custom Flow Node component
-const CustomNode = ({ data }: { data: NodeData }) => {
-  let bgColor = contentTypeColors[data.contentType || 'text'];
-  
-  // If note has tags, use the first tag's color
-  if (data.tags && data.tags.length > 0) {
-    bgColor = data.tags[0].color;
-  }
-  
-  return (
-    <div className="px-2 py-1 rounded-md shadow-md border bg-card" style={{ borderColor: bgColor }}>
-      <div className="text-sm font-medium truncate max-w-[150px]">{data.title}</div>
-      <div className="text-xs text-muted-foreground flex items-center gap-1">
-        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: bgColor }}></span>
-        <span>{data.contentType}</span>
-      </div>
-    </div>
-  );
-};
-
 // Flow component that will be wrapped with ReactFlowProvider
 const KnowledgeGraphFlow = () => {
   const { notes, tags } = useNotes();
@@ -375,6 +429,9 @@ const KnowledgeGraphFlow = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [layout, setLayout] = useState<LayoutType>('force');
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [showPreviews, setShowPreviews] = useState(false);
+  const [showMentions, setShowMentions] = useState(true);
+  const reactFlowInstance = useReactFlow();
   
   // Filter state
   const [activeTagIds, setActiveTagIds] = useState<string[]>([]);
@@ -390,16 +447,16 @@ const KnowledgeGraphFlow = () => {
     if (notes.length > 0) {
       regenerateGraph();
     }
-  }, [notes, layout]);
+  }, [notes, layout, showPreviews]);
   
   // Apply filters when they change
   useEffect(() => {
     if (notes.length > 0) {
       regenerateGraph();
     }
-  }, [activeTagIds, activeContentTypes]);
+  }, [activeTagIds, activeContentTypes, showMentions]);
   
-  const regenerateGraph = () => {
+  const regenerateGraph = useCallback(() => {
     // Apply filters
     let filteredNotes = notes;
     
@@ -438,20 +495,32 @@ const KnowledgeGraphFlow = () => {
         break;
     }
     
-    setNodes(graphData.nodes);
-    setEdges(graphData.edges);
+    // Update nodes with preview flag
+    const nodesWithPreview = graphData.nodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        showPreview: showPreviews
+      }
+    }));
+    
+    // Filter out mention edges if showMentions is false
+    const filteredEdges = showMentions 
+      ? graphData.edges 
+      : graphData.edges.filter(edge => edge.data?.type !== 'mention');
+    
+    setNodes(nodesWithPreview);
+    setEdges(filteredEdges);
     
     // We'll use fitView after everything is rendered
     setTimeout(() => {
       try {
-        document.querySelector('.react-flow__renderer')?.dispatchEvent(
-          new Event('reactflow.fitview')
-        );
+        reactFlowInstance.fitView({ padding: 0.2 });
       } catch (error) {
         console.log('Error with fit view:', error);
       }
     }, 100);
-  };
+  }, [notes, layout, activeTagIds, activeContentTypes, showPreviews, showMentions, reactFlowInstance]);
   
   const handleNodeClick = (_event: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
@@ -480,26 +549,25 @@ const KnowledgeGraphFlow = () => {
   };
 
   const handleZoomIn = () => {
-    document.querySelector('.react-flow__renderer')?.dispatchEvent(
-      new Event('reactflow.zoomin')
-    );
+    reactFlowInstance.zoomIn();
   };
 
   const handleZoomOut = () => {
-    document.querySelector('.react-flow__renderer')?.dispatchEvent(
-      new Event('reactflow.zoomout')
-    );
+    reactFlowInstance.zoomOut();
   };
 
   const handleFitView = () => {
-    document.querySelector('.react-flow__renderer')?.dispatchEvent(
-      new Event('reactflow.fitview')
-    );
+    reactFlowInstance.fitView({ padding: 0.2 });
+  };
+
+  const handleClearFilters = () => {
+    setActiveTagIds([]);
+    setActiveContentTypes([]);
   };
   
   return (
     <>
-      <div className="flex items-center justify-between p-4">
+      <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => navigate('/')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -529,12 +597,30 @@ const KnowledgeGraphFlow = () => {
       <div className="flex flex-1 overflow-hidden">
         <div className="w-64 border-r p-4 flex flex-col">
           <Tabs defaultValue="tags" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="tags">Tags</TabsTrigger>
               <TabsTrigger value="types">Types</TabsTrigger>
             </TabsList>
-            <TabsContent value="tags" className="pt-4">
-              <div className="space-y-2">
+            
+            <div className="flex items-center justify-between mb-4">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleClearFilters}
+                className="text-xs h-7 px-2 flex items-center gap-1"
+                disabled={activeTagIds.length === 0 && activeContentTypes.length === 0}
+              >
+                <Trash className="h-3 w-3" />
+                <span>Clear filters</span>
+              </Button>
+              
+              <Badge variant="outline" className="h-6">
+                {nodes.length} notes
+              </Badge>
+            </div>
+            
+            <TabsContent value="tags" className="pt-0 mt-0">
+              <div className="space-y-1 max-h-[200px] overflow-y-auto pr-2">
                 {tags.map(tag => (
                   <div
                     key={tag.id}
@@ -552,8 +638,8 @@ const KnowledgeGraphFlow = () => {
                 ))}
               </div>
             </TabsContent>
-            <TabsContent value="types" className="pt-4">
-              <div className="space-y-2">
+            <TabsContent value="types" className="pt-0 mt-0">
+              <div className="space-y-1 max-h-[200px] overflow-y-auto pr-2">
                 {Object.entries(NODE_TYPES).map(([type, label]) => (
                   <div
                     key={type}
@@ -572,6 +658,28 @@ const KnowledgeGraphFlow = () => {
               </div>
             </TabsContent>
           </Tabs>
+          
+          <Separator className="my-4" />
+          
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="show-previews"
+                checked={showPreviews}
+                onCheckedChange={setShowPreviews}
+              />
+              <Label htmlFor="show-previews">Show note previews</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="show-mentions"
+                checked={showMentions}
+                onCheckedChange={setShowMentions}
+              />
+              <Label htmlFor="show-mentions">Show mentions</Label>
+            </div>
+          </div>
           
           <Separator className="my-4" />
           
@@ -639,8 +747,14 @@ const KnowledgeGraphFlow = () => {
             onNodeClick={handleNodeClick}
             nodeTypes={nodeTypes}
             fitView
+            minZoom={0.2}
+            maxZoom={2}
+            defaultEdgeOptions={{
+              type: 'smoothstep',
+              style: { strokeWidth: 2 }
+            }}
           >
-            <Background />
+            <Background color="#aaa" gap={16} size={1} />
             <Panel position="top-right" className="bg-card p-2 rounded shadow-md flex gap-2">
               <TooltipProvider>
                 <Tooltip>
@@ -673,12 +787,13 @@ const KnowledgeGraphFlow = () => {
             </Panel>
             
             <Panel position="bottom-left">
-              <Controls showInteractive={false} />
               <MiniMap 
                 nodeColor={(node) => {
                   const nodeTags = (node.data?.tags || []) as Tag[];
-                  return nodeTags.length > 0 ? nodeTags[0].color : '#cccccc';
+                  return nodeTags.length > 0 ? nodeTags[0].color : contentTypeColors[node.data?.contentType as keyof typeof contentTypeColors] || '#cccccc';
                 }}
+                maskColor="rgba(240, 240, 240, 0.6)"
+                className="bg-card/95 border rounded shadow-md"
               />
             </Panel>
           </ReactFlow>

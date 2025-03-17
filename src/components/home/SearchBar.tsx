@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Settings, Search, Plus, Sparkles, ExternalLink, Tag, Bookmark, Cog } from 'lucide-react';
+import { Settings, Search, Plus, Sparkles, ExternalLink, Tag, Bookmark, Cog, NetworkIcon } from 'lucide-react';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -115,7 +115,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onNoteSelected, onAddNote, onSear
                   role="combobox"
                   aria-expanded={open}
                   aria-label="Search notes"
-                  className="w-full justify-between md:w-[300px] lg:w-[500px]"
+                  className="w-full justify-between md:w-[400px] lg:w-[600px]" // Increased width
                 >
                   <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                   <span className="text-muted-foreground">{searchTerm || "Search notes..."}</span>
@@ -138,7 +138,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onNoteSelected, onAddNote, onSear
                   </div>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0 md:w-[500px]">
+              <PopoverContent className="w-[300px] p-0 md:w-[400px] lg:w-[600px]"> {/* Increased width */}
                 <Command>
                   <CommandInput 
                     placeholder="Search notes..." 
@@ -168,15 +168,27 @@ const SearchBar: React.FC<SearchBarProps> = ({ onNoteSelected, onAddNote, onSear
             </Popover>
           </div>
           
-          <Button
-            variant="default"
-            onClick={onAddNote}
-            className="gap-1 bg-primary hover:bg-primary/90"
-            title="Create new note"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add Note</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/graph')}
+              className="gap-1.5"
+              title="View Knowledge Graph"
+            >
+              <NetworkIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Graph</span>
+            </Button>
+            
+            <Button
+              variant="default"
+              onClick={onAddNote}
+              className="gap-1 bg-primary hover:bg-primary/90"
+              title="Create new note"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Note</span>
+            </Button>
+          </div>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -209,15 +221,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onNoteSelected, onAddNote, onSear
         </div>
       </div>
       
-      <TagManager 
-        open={showTagManager} 
-        onOpenChange={setShowTagManager} 
-      />
+      {showTagManager && (
+        <TagManager 
+          open={showTagManager} 
+          onOpenChange={setShowTagManager} 
+        />
+      )}
       
-      <AISettings
-        open={showAISettings}
-        onOpenChange={setShowAISettings}
-      />
+      {showAISettings && (
+        <AISettings
+          open={showAISettings}
+          onOpenChange={setShowAISettings}
+        />
+      )}
     </div>
   );
 };

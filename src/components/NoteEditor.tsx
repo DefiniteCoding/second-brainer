@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
+import FormattingToolbar from '@/components/notes/FormattingToolbar';
 import { FloatingFormatToolbar } from '@/components/notes/FloatingFormatToolbar';
 import { motion } from 'framer-motion';
 import { ChevronLeft, X, Send, ImageIcon, LinkIcon, Mic, Loader2 } from 'lucide-react';
@@ -28,7 +29,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const [content, setContent] = useState(note?.content || '');
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const { createNote, updateNote } = useNotes();
+  const { addNote, updateNote } = useNotes();
   const { toast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,12 +96,14 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           description: "Your note has been saved successfully.",
         });
       } else {
-        const newNoteId = await createNote({ 
+        const newNote = { 
           title: title.trim() || 'Untitled Note', 
           content,
           contentType: 'text',
           tags: [] // Add empty tags array to satisfy the type requirement
-        });
+        };
+        
+        const newNoteId = await addNote(newNote);
         toast({
           title: "Note created",
           description: "Your note has been saved successfully.",
@@ -157,6 +160,16 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         suffix = '';
         cursorOffset = 2;
         break;
+      case 'ul':
+        prefix = '- ';
+        suffix = '';
+        cursorOffset = 2;
+        break;
+      case 'ol':
+        prefix = '1. ';
+        suffix = '';
+        cursorOffset = 3;
+        break;
       case 'code':
         if (selectedText.includes('\n')) {
           prefix = '```\n';
@@ -174,6 +187,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           prefix = '[';
           suffix = `](${url})`;
           cursorOffset = 1;
+        } else {
+          return;
         }
         break;
     }
@@ -327,7 +342,21 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           </div>
         </div>
 
-        <ScrollArea className="h-[calc(100vh-200px)]">
+        {/* Add visible formatting toolbar here */}
+        <div className="mb-4">
+          <FormattingToolbar
+            onBoldClick={() => handleFormat('bold')}
+            onItalicClick={() => handleFormat('italic')}
+            onHeadingClick={() => handleFormat('heading')}
+            onQuoteClick={() => handleFormat('quote')}
+            onCodeClick={() => handleFormat('code')}
+            onLinkClick={() => handleFormat('link')}
+            onBulletListClick={() => handleFormat('ul')}
+            onNumberedListClick={() => handleFormat('ol')}
+          />
+        </div>
+
+        <ScrollArea className="h-[calc(100vh-240px)]">
           <div className="space-y-4">
             <div className="relative">
               <Textarea

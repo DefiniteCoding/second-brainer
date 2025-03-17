@@ -15,19 +15,6 @@ const HeaderSection: React.FC = () => {
           SecondBrainer
         </h1>
       </div>
-      
-      <Link to="/graph">
-        <Button variant="outline" size="sm" className="ml-2 gap-1.5">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="5" cy="6" r="3" />
-            <circle cx="12" cy="17" r="3" />
-            <circle cx="19" cy="6" r="3" />
-            <line x1="5" y1="9" x2="12" y2="14" />
-            <line x1="12" y1="14" x2="19" y2="9" />
-          </svg>
-          <span>Graph</span>
-        </Button>
-      </Link>
     </div>
   );
 };

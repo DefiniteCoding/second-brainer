@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bold, Italic, Heading1, Quote, Code, Link as LinkIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,6 +12,7 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [isVisible, setIsVisible] = useState(false);
   const [activeButton, setActiveButton] = useState<string | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleSelectionChange = () => {
@@ -40,8 +42,20 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
       }
     };
 
+    // Handle clicks outside the toolbar
+    const handleClickOutside = (event: MouseEvent) => {
+      if (toolbarRef.current && !toolbarRef.current.contains(event.target as Node)) {
+        setIsVisible(false);
+      }
+    };
+
     document.addEventListener('selectionchange', handleSelectionChange);
-    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const handleFormatClick = (type: string) => {
@@ -68,6 +82,7 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
     <AnimatePresence>
       {isVisible && (
         <motion.div
+          ref={toolbarRef}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
