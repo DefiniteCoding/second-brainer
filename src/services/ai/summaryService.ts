@@ -1,3 +1,4 @@
+
 import { AIResponse, SummaryOptions } from '@/types/ai.types';
 import { callGeminiApi } from '../api/geminiApi';
 
@@ -20,13 +21,16 @@ export const generateSummary = async (
     const summary = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!summary) {
-      return { error: 'No summary generated' };
+      return { error: 'No summary generated', success: false };
     }
 
-    return { summary };
+    return { success: true, summary, data: { summary } };
 
   } catch (error) {
     console.error('Error generating summary:', error);
-    return { error: error instanceof Error ? error.message : 'An error occurred while generating the summary' };
+    return { 
+      success: false,
+      error: error instanceof Error ? error.message : 'An error occurred while generating the summary'
+    };
   }
 }; 

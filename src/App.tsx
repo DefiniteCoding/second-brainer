@@ -22,7 +22,7 @@ const App = () => {
     document.title = "SecondBrainer";
     
     // Create a link element for the favicon
-    const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+    const link = document.querySelector("link[rel*='icon']") as HTMLLinkElement || document.createElement('link');
     link.type = 'image/x-icon';
     link.rel = 'shortcut icon';
     link.href = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%238b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>';

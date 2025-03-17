@@ -23,7 +23,7 @@ export const findRelatedNotes = async (content: string): Promise<AIResponse> => 
     try {
       const cleanedText = relatedText.replace(/```json|```/g, '').trim();
       const concepts = JSON.parse(cleanedText);
-      return { concepts };
+      return { success: true, data: { concepts } };
     } catch (parseError) {
       console.error('Error parsing concepts:', parseError, relatedText);
       
@@ -34,12 +34,15 @@ export const findRelatedNotes = async (content: string): Promise<AIResponse> => 
         .map(k => k.trim())
         .filter(k => k && k.length > 1);
       
-      return { concepts: extractedConcepts };
+      return { success: true, data: { concepts: extractedConcepts } };
     }
 
   } catch (error) {
     console.error('Error finding related concepts:', error);
-    return { error: error instanceof Error ? error.message : 'An error occurred while finding related concepts' };
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'An error occurred while finding related concepts' 
+    };
   }
 };
 

@@ -1,11 +1,10 @@
+
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import 'katex/dist/katex.min.css';
 
 interface RichTextRendererProps {
   content: string;
@@ -16,8 +15,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = ({ content, className 
   return (
     <div className={`prose dark:prose-invert max-w-none ${className || ''}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        remarkPlugins={[remarkGfm]}
         components={{
           code({ node, inline, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');
@@ -63,4 +61,4 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = ({ content, className 
   );
 };
 
-export default RichTextRenderer; 
+export default RichTextRenderer;

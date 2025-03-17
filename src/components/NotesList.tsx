@@ -69,7 +69,7 @@ const NotesList: React.FC<NotesListProps> = ({ onNoteClick, notes: propNotes, se
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  {getContentTypeIcon(note.contentType, note.title)}
+                  {getContentTypeIcon(note.contentType, note.title || '')}
                   <h3 className="font-medium leading-none">{note.title}</h3>
                 </div>
                 <p className="text-sm text-muted-foreground line-clamp-2">

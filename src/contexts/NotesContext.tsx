@@ -22,6 +22,7 @@ export interface Note {
   mediaUrl?: string;
   connections?: string[]; // IDs of explicitly connected notes
   mentions?: string[]; // IDs of mentioned notes
+  concepts?: string[]; // AI-generated concepts for the note
 }
 
 // Helper function to generate default title
@@ -32,6 +33,7 @@ const generateDefaultTitle = (date: Date = new Date()): string => {
 interface NotesContextType {
   notes: Note[];
   addNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  createNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => string;
   updateNote: (id: string, note: Partial<Note>) => void;
   deleteNote: (id: string) => void;
   getNoteById: (id: string) => Note | undefined;
@@ -160,6 +162,8 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return newNote.id;
   };
 
+  const createNote = addNote;
+
   const updateNote = (id: string, noteUpdate: Partial<Note>) => {
     setNotes((prevNotes) =>
       prevNotes.map((note) => {
@@ -185,7 +189,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteNote = (id: string) => {
     setNotes((prevNotes) => prevNotes.filter((note) => note.id !== id));
     
-    setNotes((prevNotes) => 
+    setNotes((prevNotes) =>
       prevNotes.map((note) => ({
         ...note,
         connections: note.connections?.filter(connId => connId !== id) || [],
@@ -426,6 +430,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       value={{
         notes,
         addNote,
+        createNote,
         updateNote,
         deleteNote,
         getNoteById,

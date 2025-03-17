@@ -1,8 +1,16 @@
+
 export interface AIResponse {
   summary?: string;
   keywords?: string[];
+  concepts?: string[];
   suggestedConnections?: string[];
   error?: string;
+  success?: boolean;
+  data?: {
+    summary?: string;
+    keywords?: string[];
+    concepts?: string[];
+  };
 }
 
 export interface SummaryOptions {
@@ -12,7 +20,7 @@ export interface SummaryOptions {
 
 export interface GeminiConfig {
   temperature: number;
-  topK: number;
-  topP: number;
-  maxOutputTokens: number;
+  topK?: number;
+  topP?: number;
+  maxOutputTokens?: number;
 } 
