@@ -99,7 +99,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         const newNote = { 
           title: title.trim() || 'Untitled Note', 
           content,
-          contentType: 'text',
+          contentType: 'text' as const, // Explicitly type as a literal
           tags: [] // Add empty tags array to satisfy the type requirement
         };
         
@@ -425,3 +425,4 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 };
 
 export default NoteEditor;
+
