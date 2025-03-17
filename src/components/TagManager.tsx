@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tag, useNotes } from '@/contexts/NotesContext';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X } from 'lucide-react';
-import { HexColorPicker } from 'react-colorful';
+import { Plus, X, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface TagManagerProps {
@@ -33,72 +33,112 @@ const TagManager: React.FC<TagManagerProps> = ({ open = false, onOpenChange }) =
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleAddTag();
+    }
+  };
+
+  const colorOptions = [
+    '#EF4444', // red
+    '#F97316', // orange
+    '#F59E0B', // amber
+    '#10B981', // emerald
+    '#06B6D4', // cyan
+    '#3B82F6', // blue
+    '#6366F1', // indigo
+    '#8B5CF6', // violet
+    '#D946EF', // fuchsia
+    '#EC4899', // pink
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Manage Tags</DialogTitle>
         </DialogHeader>
-
-        <div className="flex flex-col gap-4">
-          {/* Add new tag */}
-          <div className="flex items-center gap-2">
+        
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2">
             <Popover open={showColorPicker} onOpenChange={setShowColorPicker}>
               <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  className="h-10 w-10 p-0 rounded-md" 
+                <Button
+                  variant="outline"
+                  className="w-10 p-0 h-10"
                   style={{ backgroundColor: newTagColor }}
-                >
-                  <span className="sr-only">Pick a color</span>
-                </Button>
+                />
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-3">
-                <HexColorPicker color={newTagColor} onChange={setNewTagColor} />
+              <PopoverContent className="w-auto p-2">
+                <div className="flex flex-wrap gap-1 max-w-[240px]">
+                  {colorOptions.map((color) => (
+                    <div
+                      key={color}
+                      className="w-8 h-8 rounded-md cursor-pointer flex items-center justify-center"
+                      style={{ backgroundColor: color }}
+                      onClick={() => {
+                        setNewTagColor(color);
+                        setShowColorPicker(false);
+                      }}
+                    >
+                      {newTagColor === color && (
+                        <Check className="h-4 w-4 text-white" />
+                      )}
+                    </div>
+                  ))}
+                </div>
               </PopoverContent>
             </Popover>
+            
             <Input
               placeholder="New tag name"
               value={newTagName}
               onChange={(e) => setNewTagName(e.target.value)}
+              onKeyDown={handleKeyDown}
               className="flex-1"
             />
-            <Button onClick={handleAddTag} size="sm">
-              <Plus className="h-4 w-4" />
+            
+            <Button onClick={handleAddTag} disabled={!newTagName.trim()}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add
             </Button>
           </div>
-
-          {/* Existing tags */}
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Existing Tags</div>
-            <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto pr-1">
-              {tags.map(tag => (
-                <div key={tag.id} className="group flex items-center">
-                  <Badge 
-                    style={{ backgroundColor: tag.color }}
-                    className="text-white flex items-center gap-1 px-3 py-1 group-hover:pr-1 transition-all"
-                  >
-                    {tag.name}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => deleteTag(tag.id)}
+          
+          <div className="border rounded-md">
+            <div className="p-3 border-b bg-muted/50">
+              <h3 className="text-sm font-medium">Your Tags</h3>
+            </div>
+            <div className="p-3">
+              {tags.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No tags yet. Create your first tag above.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      style={{ backgroundColor: tag.color }}
+                      className="text-white flex items-center gap-1 px-3 py-1 h-7"
                     >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
+                      {tag.name}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteTag(tag.id);
+                        }}
+                      />
+                    </Badge>
+                  ))}
                 </div>
-              ))}
-              {tags.length === 0 && (
-                <div className="text-sm text-muted-foreground">No tags created yet</div>
               )}
             </div>
           </div>
         </div>
-
+        
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} className="w-full">Done</Button>
+          <Button onClick={() => onOpenChange(false)}>Done</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

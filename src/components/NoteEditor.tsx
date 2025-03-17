@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { Button } from '@/components/ui/button';
@@ -8,8 +9,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { FloatingFormatToolbar } from '@/components/notes/FloatingFormatToolbar';
 import { motion } from 'framer-motion';
 import { ChevronLeft, X, Send, ImageIcon, LinkIcon, Mic, Loader2 } from 'lucide-react';
-import { uploadFile } from '@/lib/fileUpload';
+import { uploadFile, validateFileSize, validateImageType } from '@/lib/fileUpload';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
+import { useNavigate } from 'react-router-dom';
 
 interface NoteEditorProps {
   note: Note | null;
@@ -25,11 +27,21 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const [title, setTitle] = useState(note?.title || '');
   const [content, setContent] = useState(note?.content || '');
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { createNote, updateNote } = useNotes();
   const { toast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { isRecording, startRecording, stopRecording } = useVoiceRecorder();
+  const navigate = useNavigate();
+  
+  const {
+    isRecording,
+    startRecording,
+    stopRecording,
+    resetRecording,
+    audioURL,
+    error: recordingError
+  } = useVoiceRecorder();
 
   useEffect(() => {
     if (note) {
@@ -41,6 +53,26 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   }, [note]);
 
+  // Handle audio recording results
+  useEffect(() => {
+    if (audioURL) {
+      const audioMarkdown = `🎤 [Voice Recording](${audioURL})`;
+      setContent(prev => prev + (prev ? '\n\n' : '') + audioMarkdown);
+      resetRecording();
+    }
+  }, [audioURL]);
+
+  // Handle recording errors
+  useEffect(() => {
+    if (recordingError) {
+      toast({
+        title: "Recording Error",
+        description: recordingError,
+        variant: "destructive"
+      });
+    }
+  }, [recordingError, toast]);
+
   const handleSave = async () => {
     if (!content.trim()) {
       toast({
@@ -51,23 +83,43 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       return;
     }
 
+    setIsSaving(true);
     try {
       if (note) {
-        await updateNote(note.id, { title: title.trim() || undefined, content });
+        await updateNote(note.id, { 
+          title: title.trim() || 'Untitled Note', 
+          content 
+        });
+        toast({
+          title: "Note updated",
+          description: "Your note has been saved successfully.",
+        });
       } else {
-        await createNote({ title: title.trim() || undefined, content });
+        const newNoteId = await createNote({ 
+          title: title.trim() || 'Untitled Note', 
+          content,
+          contentType: 'text'
+        });
+        toast({
+          title: "Note created",
+          description: "Your note has been saved successfully.",
+        });
+        
+        // Navigate to the newly created note
+        if (newNoteId) {
+          navigate(`/?noteId=${newNoteId}`, { replace: true });
+        }
       }
-      toast({
-        title: note ? "Note updated" : "Note created",
-        description: "Your note has been saved successfully.",
-      });
       onBack();
     } catch (error) {
+      console.error('Error saving note:', error);
       toast({
         title: "Error",
         description: "Failed to save note. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -155,6 +207,24 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!validateImageType(file)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!validateFileSize(file)) {
+      toast({
+        title: "File too large",
+        description: "Please select an image under 5MB.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setIsUploading(true);
       const dataUrl = await uploadFile(file);
@@ -176,6 +246,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       });
     } finally {
       setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -198,19 +271,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
   const handleToggleRecording = async () => {
     if (isRecording) {
-      const audioUrl = await stopRecording();
-      if (audioUrl) {
-        const textarea = textareaRef.current;
-        if (textarea) {
-          const cursorPos = textarea.selectionStart;
-          const newContent = content.substring(0, cursorPos) + 
-            `\n[Audio Recording](${audioUrl})\n` + 
-            content.substring(cursorPos);
-          setContent(newContent);
-        }
-      }
+      await stopRecording();
     } else {
-      startRecording();
+      await startRecording();
     }
   };
 
@@ -251,8 +314,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             <Button
               onClick={handleSave}
               className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:scale-105 transition-transform"
+              disabled={isSaving}
             >
-              <Send className="h-4 w-4 mr-2" />
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
               {note ? 'Update' : 'Save'}
             </Button>
           </div>
@@ -326,4 +394,4 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   );
 };
 
-export default NoteEditor; 
+export default NoteEditor;

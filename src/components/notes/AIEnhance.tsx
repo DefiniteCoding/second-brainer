@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ interface AIEnhanceProps {
 }
 
 const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
-  const { updateNote, notes, connectNotes } = useNotes();
+  const { updateNote, notes, connectNotes, addTag } = useNotes();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("summary");
   const [loading, setLoading] = useState(false);
@@ -102,15 +103,18 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
 
     setLoading(true);
     try {
-      const result = await aiService.findRelatedNotes(note, notes);
+      const result = await aiService.findRelatedNotes(note.content);
       if (result.error) {
         toast({
           title: "Error",
           description: result.error,
           variant: "destructive"
         });
-      } else if (result.suggestedConnections) {
-        const related = result.suggestedConnections
+      } else if (result.concepts) {
+        // Get potential related notes based on the extracted concepts
+        const relatedNoteIds = await searchRelatedNotes(result.concepts);
+        
+        const related = relatedNoteIds
           .map(id => {
             const foundNote = notes.find(n => n.id === id);
             return foundNote ? { id, title: foundNote.title } : null;
@@ -120,6 +124,7 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
         setRelatedNotes(related);
       }
     } catch (error) {
+      console.error('Error finding related notes:', error);
       toast({
         title: "Error",
         description: "Failed to find related notes",
@@ -130,32 +135,102 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
     }
   };
 
-  const applyEnhancement = () => {
-    setEnhancingNote(true);
+  // Search for related notes based on concepts
+  const searchRelatedNotes = async (concepts: string[]): Promise<string[]> => {
+    const relatedNoteIds: string[] = [];
+    const noteContentMap = new Map<string, string>();
     
-    let updatedContent = note.content;
-    
-    if (summary) {
-      updatedContent = `> ${summary.trim().replace(/\n/g, '\n> ')}\n\n${updatedContent}`;
-    }
-    
-    updateNote(note.id, { content: updatedContent });
-    
-    if (relatedNotes) {
-      relatedNotes.forEach(related => {
-        connectNotes(note.id, related.id);
-      });
-    }
-    
-    toast({
-      title: "Note Enhanced",
-      description: "AI enhancements have been applied to your note",
+    // Create a map of note content for faster searching
+    notes.forEach(n => {
+      if (n.id !== note.id) {
+        noteContentMap.set(n.id, `${n.title} ${n.content}`.toLowerCase());
+      }
     });
     
-    setEnhancingNote(false);
-    setSummary(null);
-    setKeywords(null);
-    setRelatedNotes(null);
+    // Search for each concept in all notes
+    concepts.forEach(concept => {
+      const conceptLower = concept.toLowerCase();
+      noteContentMap.forEach((content, id) => {
+        if (content.includes(conceptLower) && !relatedNoteIds.includes(id)) {
+          relatedNoteIds.push(id);
+        }
+      });
+    });
+    
+    return relatedNoteIds.slice(0, 5); // Limit to 5 related notes
+  };
+
+  const applyEnhancement = async () => {
+    setEnhancingNote(true);
+    
+    try {
+      let updatedNote = { ...note };
+      
+      // Apply summary if available
+      if (summary) {
+        updatedNote.content = `> ${summary.trim().replace(/\n/g, '\n> ')}\n\n${note.content}`;
+      }
+      
+      // Apply tag keywords if available
+      if (keywords && keywords.length > 0) {
+        // Create new tags from keywords and add them to the note
+        const newTags = [...updatedNote.tags];
+        
+        for (const keyword of keywords) {
+          // Generate a random color for the new tag
+          const tagColors = ['#EF4444', '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899'];
+          const randomColor = tagColors[Math.floor(Math.random() * tagColors.length)];
+          
+          // Add the tag to the note
+          const tagId = addTag({ name: keyword, color: randomColor });
+          
+          // Check if the tag is already on the note
+          if (!newTags.some(tag => tag.name.toLowerCase() === keyword.toLowerCase())) {
+            newTags.push({ id: tagId, name: keyword, color: randomColor });
+          }
+        }
+        
+        updatedNote.tags = newTags;
+      }
+      
+      // Apply connections if available
+      if (relatedNotes && relatedNotes.length > 0) {
+        // Create connections array if it doesn't exist
+        const connections = updatedNote.connections || [];
+        
+        // Add each related note as a connection
+        relatedNotes.forEach(related => {
+          if (!connections.includes(related.id)) {
+            connections.push(related.id);
+          }
+          
+          // Create a bi-directional connection
+          connectNotes(note.id, related.id);
+        });
+        
+        updatedNote.connections = connections;
+      }
+      
+      // Save the updated note
+      await updateNote(note.id, updatedNote);
+      
+      toast({
+        title: "Note Enhanced",
+        description: "AI enhancements have been applied to your note",
+      });
+    } catch (error) {
+      console.error('Error applying enhancements:', error);
+      toast({
+        title: "Error",
+        description: "Failed to apply enhancements",
+        variant: "destructive"
+      });
+    } finally {
+      setEnhancingNote(false);
+      setSummary(null);
+      setKeywords(null);
+      setRelatedNotes(null);
+    }
   };
 
   const discardChanges = () => {
@@ -177,7 +252,7 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
             Summary
           </TabsTrigger>
           <TabsTrigger value="keywords" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
-            Keywords
+            Generate Tags
           </TabsTrigger>
           <TabsTrigger value="connections" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
             Connections
@@ -199,7 +274,14 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
               className="w-full"
               disabled={loading}
             >
-              {loading ? "Generating..." : "Generate Summary"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                "Generate Summary"
+              )}
             </Button>
           )}
         </TabsContent>
@@ -222,7 +304,14 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
               className="w-full"
               disabled={loading}
             >
-              {loading ? "Extracting..." : "Extract Keywords"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                "Generate Tags"
+              )}
             </Button>
           )}
         </TabsContent>
@@ -247,7 +336,14 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
               className="w-full"
               disabled={loading}
             >
-              {loading ? "Finding..." : "Find Related Notes"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Finding...
+                </>
+              ) : (
+                "Find Related Notes"
+              )}
             </Button>
           )}
         </TabsContent>
@@ -270,8 +366,17 @@ const AIEnhance: React.FC<AIEnhanceProps> = ({ note }) => {
             className="flex items-center gap-1"
             disabled={enhancingNote}
           >
-            <Check className="h-4 w-4" />
-            <span>Apply to Note</span>
+            {enhancingNote ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                Applying...
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4" />
+                <span>Apply to Note</span>
+              </>
+            )}
           </Button>
         </div>
       )}

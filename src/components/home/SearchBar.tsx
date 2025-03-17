@@ -1,20 +1,18 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Brain, Network, Settings, Upload, Plus } from 'lucide-react';
+import { Settings, Search, Plus, Sparkles, ExternalLink, Tag, Bookmark, Cog } from 'lucide-react';
+import { Note, useNotes } from '@/contexts/NotesContext';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useNavigate } from 'react-router-dom';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { Note } from '@/contexts/NotesContext';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import TagManager from '@/components/TagManager';
-import DataExportImport from '@/components/DataExportImport';
+import { useToast } from '@/components/ui/use-toast';
 import AISettings from '@/components/AISettings';
-import { motion } from 'framer-motion';
-import { fadeIn } from '@/lib/animations';
-import { UnifiedSearch } from './UnifiedSearch';
+import { searchNotes } from '@/services/search';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface SearchBarProps {
   onNoteSelected: (note: Note) => void;
@@ -23,130 +21,194 @@ interface SearchBarProps {
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ onNoteSelected, onAddNote, onSearchResults }) => {
-  const navigate = useNavigate();
-  const [showAISettings, setShowAISettings] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [showTagManager, setShowTagManager] = useState(false);
-  const [showDataManager, setShowDataManager] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showAISettings, setShowAISettings] = useState(false);
+  const [isAISearch, setIsAISearch] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const { notes, exportNotes } = useNotes();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debouncedSearchTerm = useDebounce(searchTerm, 600);
 
+  // Apply search filter, potentially using AI if enabled
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
+    const performSearch = async () => {
+      if (!debouncedSearchTerm.trim()) {
+        onSearchResults(null, false);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const results = await searchNotes(
+          notes,
+          debouncedSearchTerm,
+          { contentTypes: [], tags: [] },
+          isAISearch
+        );
+        onSearchResults(results, false);
+      } catch (error) {
+        console.error('Search error:', error);
+        toast({
+          title: "Search error",
+          description: "There was a problem with your search. Please try again.",
+          variant: "destructive"
+        });
+        onSearchResults(null, false);
+      } finally {
+        setIsSearching(false);
+      }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    performSearch();
+  }, [debouncedSearchTerm, isAISearch, notes]);
 
-  const handleModalClose = (setter: (open: boolean) => void) => {
-    setter(false);
-    setDropdownOpen(false);
+  // Focus the input field when search is opened
+  useEffect(() => {
+    if (open && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
+    }
+  }, [open]);
+
+  // Clear search when closed
+  useEffect(() => {
+    if (!open) {
+      setSearchTerm('');
+    }
+  }, [open]);
+
+  const handleExport = () => {
+    try {
+      exportNotes();
+      toast({
+        title: "Export successful",
+        description: "Your notes have been exported successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: "There was a problem exporting your notes. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
-    <motion.div
-      variants={fadeIn}
-      initial="initial"
-      animate="animate"
-      className={`sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b ${
-        isScrolled ? 'shadow-md' : ''
-      } transition-all duration-200`}
-    >
-      <div className="container mx-auto py-3 px-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Brain className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-semibold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
-              Second Brainer
-            </h1>
-          </div>
-
-          <div className="flex-1 max-w-2xl">
-            <UnifiedSearch onSearchResults={onSearchResults} />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={onAddNote}
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-600 hover:to-purple-600 flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Note
-            </Button>
-
-            <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="flex items-center gap-2"
+    <div className="border-b">
+      <div className="container flex h-14 max-w-screen-2xl items-center px-4">
+        <div className="mr-4 hidden md:flex">
+          <a href="/" className="mr-6 flex items-center space-x-2">
+            <Bookmark className="h-6 w-6" />
+            <span className="hidden font-bold sm:inline-block">
+              SecondBrainer
+            </span>
+          </a>
+        </div>
+        
+        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+          <div className="w-full flex-1 md:w-auto md:flex-none">
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  aria-label="Search notes"
+                  className="w-full justify-between md:w-[300px] lg:w-[500px]"
                 >
-                  <Settings className="h-4 w-4" />
-                  Settings
+                  <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                  <span className="text-muted-foreground">{searchTerm || "Search notes..."}</span>
+                  <kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+                    <span className="text-xs">⌘</span>K
+                  </kbd>
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => {
-                  setShowAISettings(true);
-                  setDropdownOpen(false);
-                }}>
-                  <Brain className="h-4 w-4 mr-2" />
-                  AI Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  setShowTagManager(true);
-                  setDropdownOpen(false);
-                }}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Tag Manager
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  setShowDataManager(true);
-                  setDropdownOpen(false);
-                }}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import/Export
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Button 
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/graph')}
-              className="flex items-center gap-2"
-            >
-              <Network className="h-4 w-4 text-indigo-500" />
-              Graph
-            </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0 md:w-[500px]">
+                <Command>
+                  <CommandInput 
+                    placeholder="Search notes..." 
+                    ref={inputRef}
+                    value={searchTerm}
+                    onValueChange={setSearchTerm}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      {isSearching ? "Searching..." : "No results found."}
+                    </CommandEmpty>
+                    <CommandGroup heading="Smart Search">
+                      <CommandItem 
+                        onSelect={() => setIsAISearch(!isAISearch)}
+                        className="flex items-center"
+                      >
+                        <div className={`mr-2 h-4 w-4 ${isAISearch ? 'text-primary' : 'text-muted-foreground'}`}>
+                          <Sparkles className="h-4 w-4" />
+                        </div>
+                        <span>Use AI for natural language search</span>
+                        {isAISearch && <span className="ml-auto text-xs text-primary">Active</span>}
+                      </CommandItem>
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
+          
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onAddNote}
+            className="rounded-full"
+            title="Create new note"
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="rounded-full"
+                title="Settings"
+              >
+                <Cog className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Settings</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShowTagManager(true)}>
+                <Tag className="mr-2 h-4 w-4" />
+                <span>Manage Tags</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExport}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                <span>Export Notes</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowAISettings(true)}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                <span>AI Settings</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-
-      {showAISettings && (
-        <AISettings 
-          open={showAISettings} 
-          onOpenChange={(open) => handleModalClose(setShowAISettings)} 
-        />
-      )}
       
-      {showTagManager && (
-        <TagManager 
-          open={showTagManager} 
-          onOpenChange={(open) => handleModalClose(setShowTagManager)} 
-        />
-      )}
+      <TagManager 
+        open={showTagManager} 
+        onOpenChange={setShowTagManager} 
+      />
       
-      {showDataManager && (
-        <DataExportImport 
-          open={showDataManager} 
-          onOpenChange={(open) => handleModalClose(setShowDataManager)} 
-        />
-      )}
-    </motion.div>
+      <AISettings
+        open={showAISettings}
+        onOpenChange={setShowAISettings}
+      />
+    </div>
   );
 };
 

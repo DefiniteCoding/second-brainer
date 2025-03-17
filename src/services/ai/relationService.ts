@@ -1,3 +1,4 @@
+
 import { Note } from '@/contexts/NotesContext';
 import { AIResponse } from '@/types/ai.types';
 import { callGeminiApi } from '../api/geminiApi';
@@ -40,4 +41,44 @@ export const findRelatedNotes = async (content: string): Promise<AIResponse> => 
     console.error('Error finding related concepts:', error);
     return { error: error instanceof Error ? error.message : 'An error occurred while finding related concepts' };
   }
-}; 
+};
+
+// This function searches for notes related to a specific note based on given concepts
+export const findRelatedNotesByContent = async (
+  sourceNote: Note,
+  allNotes: Note[],
+  concepts: string[]
+): Promise<string[]> => {
+  // Filter out the source note and create a map for efficient searching
+  const otherNotes = allNotes.filter(note => note.id !== sourceNote.id);
+  const relatedNoteIds: string[] = [];
+  
+  // If no concepts were found, return empty array
+  if (!concepts || concepts.length === 0) {
+    return [];
+  }
+  
+  // Search for each concept in all notes
+  for (const note of otherNotes) {
+    const noteContent = `${note.title} ${note.content}`.toLowerCase();
+    let matchCount = 0;
+    
+    for (const concept of concepts) {
+      if (noteContent.includes(concept.toLowerCase())) {
+        matchCount++;
+      }
+    }
+    
+    // If the note matches at least one concept, consider it related
+    if (matchCount > 0) {
+      relatedNoteIds.push(note.id);
+      
+      // Limit to 5 related notes
+      if (relatedNoteIds.length >= 5) {
+        break;
+      }
+    }
+  }
+  
+  return relatedNoteIds;
+};
