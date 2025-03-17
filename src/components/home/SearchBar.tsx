@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import AISettings from '@/components/AISettings';
 import { searchNotes } from '@/services/search';
 import { useDebounce } from '@/hooks/useDebounce';
+import HeaderSection from './HeaderSection';
 
 interface SearchBarProps {
   onNoteSelected: (note: Note) => void;
@@ -101,13 +102,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onNoteSelected, onAddNote, onSear
   return (
     <div className="border-b">
       <div className="container flex h-14 max-w-screen-2xl items-center px-4">
-        <div className="mr-4 hidden md:flex">
-          <a href="/" className="mr-6 flex items-center space-x-2">
-            <Bookmark className="h-6 w-6" />
-            <span className="hidden font-bold sm:inline-block">
-              SecondBrainer
-            </span>
-          </a>
+        <div className="mr-4 flex">
+          <HeaderSection />
         </div>
         
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
@@ -123,9 +119,23 @@ const SearchBar: React.FC<SearchBarProps> = ({ onNoteSelected, onAddNote, onSear
                 >
                   <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                   <span className="text-muted-foreground">{searchTerm || "Search notes..."}</span>
-                  <kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-                    <span className="text-xs">⌘</span>K
-                  </kbd>
+                  <div className="flex items-center ml-auto gap-1.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-6 w-6 rounded-full ${isAISearch ? "text-primary bg-primary/10" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsAISearch(!isAISearch);
+                      }}
+                      title={isAISearch ? "Disable AI search" : "Enable AI search"}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                    </Button>
+                    <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+                      <span className="text-xs">⌘</span>K
+                    </kbd>
+                  </div>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[300px] p-0 md:w-[500px]">
@@ -159,13 +169,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onNoteSelected, onAddNote, onSear
           </div>
           
           <Button
-            size="icon"
-            variant="ghost"
+            variant="default"
             onClick={onAddNote}
-            className="rounded-full"
+            className="gap-1 bg-primary hover:bg-primary/90"
             title="Create new note"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
+            <span>Add Note</span>
           </Button>
           
           <DropdownMenu>

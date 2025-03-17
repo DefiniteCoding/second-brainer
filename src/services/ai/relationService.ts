@@ -8,16 +8,17 @@ export const findRelatedNotes = async (content: string): Promise<AIResponse> => 
     const prompt = `
       Analyze this text and identify key concepts, themes, and topics that could be used to find related content.
       Return only a JSON array of keywords and phrases that capture the main ideas.
+      Be specific and detailed in your analysis to find meaningful connections.
       
       Text to analyze:
       ${content}
     `;
 
-    const data = await callGeminiApi(prompt, { temperature: 0.1 });
+    const data = await callGeminiApi(prompt, { temperature: 0.2 });
     const relatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!relatedText) {
-      return { error: 'No related concepts found' };
+      return { success: false, error: 'No related concepts found' };
     }
 
     try {
@@ -29,8 +30,8 @@ export const findRelatedNotes = async (content: string): Promise<AIResponse> => 
       
       // Fallback: Try to extract concepts even if not valid JSON
       const extractedConcepts = relatedText
-        .replace(/["'\[\]\{\}]/g, '')
-        .split(/,|\n/)
+        .replace(/["'\\[\\]\\{\\}]/g, '')
+        .split(/,|\\n/)
         .map(k => k.trim())
         .filter(k => k && k.length > 1);
       
@@ -62,26 +63,43 @@ export const findRelatedNotesByContent = async (
   }
   
   // Search for each concept in all notes
+  const noteScores: Map<string, number> = new Map();
+  
   for (const note of otherNotes) {
     const noteContent = `${note.title} ${note.content}`.toLowerCase();
-    let matchCount = 0;
+    let matchScore = 0;
     
     for (const concept of concepts) {
-      if (noteContent.includes(concept.toLowerCase())) {
-        matchCount++;
+      const conceptLower = concept.toLowerCase();
+      // Exact match gets higher score
+      if (noteContent.includes(conceptLower)) {
+        matchScore += 5;
+      }
+      
+      // Partial match for multi-word concepts
+      const words = conceptLower.split(' ');
+      if (words.length > 1) {
+        const partialMatches = words.filter(word => 
+          word.length > 3 && noteContent.includes(word)
+        ).length;
+        
+        if (partialMatches > 0) {
+          matchScore += partialMatches * 2;
+        }
       }
     }
     
-    // If the note matches at least one concept, consider it related
-    if (matchCount > 0) {
-      relatedNoteIds.push(note.id);
-      
-      // Limit to 5 related notes
-      if (relatedNoteIds.length >= 5) {
-        break;
-      }
+    // If the note has any match score, add it to the scores map
+    if (matchScore > 0) {
+      noteScores.set(note.id, matchScore);
     }
   }
   
-  return relatedNoteIds;
+  // Sort by score (highest first) and return top 5 matches
+  const sortedNotes = [...noteScores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id]) => id);
+  
+  return sortedNotes;
 };

@@ -1,3 +1,4 @@
+
 import { Note } from '@/contexts/NotesContext';
 import { encryptApiKey, decryptApiKey } from '@/lib/encryption';
 import { generateSummary } from './summaryService';
@@ -46,6 +47,7 @@ export const naturalLanguageSearch = async (query: string, notes: Note[]): Promi
     // Prepare notes for comparison
     const notesWithIndex = notes.map((note, index) => ({
       index,
+      id: note.id,
       content: `${note.title || ''}\n${note.content}`,
     }));
 
@@ -53,46 +55,105 @@ export const naturalLanguageSearch = async (query: string, notes: Note[]): Promi
     const prompt = `
       I want to find the most relevant notes that match this search query: "${query}"
 
-      Here are the notes to search through (format: note number followed by content):
-      ${notesWithIndex.map(note => `Note ${note.index + 1}:\n${note.content}\n---`).join('\n')}
+      Here are the notes to search through (format: note number, note ID, followed by content):
+      ${notesWithIndex.map(note => `Note ${note.index + 1} (ID: ${note.id}):\n${note.content}\n---`).join('\n')}
 
-      Return only a JSON array of note numbers (1-based) that are most relevant to the search query, ordered by relevance.
-      Example response: [3, 1, 4]
-      Only include notes that are actually relevant to the query.
+      Return only a JSON array of objects with these properties:
+      - id: the note ID
+      - score: a relevance score from 0-100 (higher means more relevant)
+
+      Example response: [{"id":"note-123","score":95},{"id":"note-456","score":80}]
+      
+      Be generous with relevance scores for semantic matches, not just exact keyword matches.
+      Include notes that conceptually relate to the query, even if they don't contain the exact terms.
     `;
 
-    // Call Gemini API with a lower temperature for more focused results
+    // Call Gemini API with a moderate temperature for a good balance of relevance and flexibility
     const response = await callGeminiApi(prompt, {
-      temperature: 0.1,
-      topK: 5,
+      temperature: 0.3,
+      topK: 10,
+      topP: 0.95,
+      maxOutputTokens: 1024
     });
+    
+    const responseText = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!responseText) {
+      throw new Error('Empty response from AI');
+    }
 
     try {
-      // Parse the response and get the relevant note indices
-      const relevantIndices: number[] = JSON.parse(response.trim());
+      // Extract JSON from response (handling potential text around it)
+      const jsonMatch = responseText.match(/\[.*\]/s);
+      if (!jsonMatch) {
+        throw new Error('No valid JSON array found in response');
+      }
       
-      // Convert 1-based indices to 0-based and filter out invalid indices
-      return relevantIndices
-        .map(index => notes[index - 1])
-        .filter(note => note !== undefined);
+      const relevanceResults = JSON.parse(jsonMatch[0]);
+      
+      if (!Array.isArray(relevanceResults)) {
+        throw new Error('Response is not an array');
+      }
+      
+      // Filter notes based on relevance results - requiring score > 50 for better quality matches
+      const minScore = 50;
+      const matchedNotes = relevanceResults
+        .filter(result => result.score > minScore)
+        .sort((a, b) => b.score - a.score)
+        .map(result => notes.find(note => note.id === result.id))
+        .filter((note): note is Note => note !== undefined);
+      
+      return matchedNotes;
     } catch (parseError) {
-      console.error('Error parsing Gemini API response:', parseError);
+      console.error('Error parsing AI response:', parseError, responseText);
+      
       // Fallback to basic text search if parsing fails
-      const searchTerms = query.toLowerCase().split(' ');
-      return notes.filter(note => {
-        const content = `${note.title || ''} ${note.content}`.toLowerCase();
-        return searchTerms.every(term => content.includes(term));
-      });
+      return fallbackTextSearch(query, notes);
     }
   } catch (error) {
     console.error('Error performing natural language search:', error);
     // Fallback to basic text search
-    const searchTerms = query.toLowerCase().split(' ');
-    return notes.filter(note => {
-      const content = `${note.title || ''} ${note.content}`.toLowerCase();
-      return searchTerms.every(term => content.includes(term));
-    });
+    return fallbackTextSearch(query, notes);
   }
 };
 
-export { generateSummary, extractKeywords, findRelatedNotes }; 
+// A more robust fallback text search method
+const fallbackTextSearch = (query: string, notes: Note[]): Note[] => {
+  const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 2);
+  
+  // For empty query or all short terms, return empty results
+  if (searchTerms.length === 0) {
+    return [];
+  }
+  
+  const noteScores = notes.map(note => {
+    const content = `${note.title || ''} ${note.content}`.toLowerCase();
+    let score = 0;
+    
+    // Check for exact phrase match (highest score)
+    if (content.includes(query.toLowerCase())) {
+      score += 100;
+    }
+    
+    // Check for individual term matches
+    for (const term of searchTerms) {
+      if (content.includes(term)) {
+        // Title matches weighted more heavily
+        if (note.title.toLowerCase().includes(term)) {
+          score += 20;
+        } else {
+          score += 10;
+        }
+      }
+    }
+    
+    return { note, score };
+  });
+  
+  // Return notes with scores above 0, sorted by score (highest first)
+  return noteScores
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.note);
+};
+
+export { generateSummary, extractKeywords, findRelatedNotes };
