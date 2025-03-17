@@ -57,6 +57,8 @@ export const toolbarAnimation: Variants = {
     opacity: 1, 
     y: 0,
     transition: { 
+      type: "tween",
+      ease: "easeOut",
       duration: 0.2
     } 
   },
