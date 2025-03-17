@@ -1,18 +1,17 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Note, useNotes } from '@/contexts/NotesContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
 import FormattingToolbar from '@/components/notes/FormattingToolbar';
 import { FloatingFormatToolbar } from '@/components/notes/FloatingFormatToolbar';
 import { motion } from 'framer-motion';
-import { ChevronLeft, X, Send, ImageIcon, LinkIcon, Mic, Loader2 } from 'lucide-react';
-import { uploadFile, validateFileSize, validateImageType } from '@/lib/fileUpload';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { useNavigate } from 'react-router-dom';
+import { uploadFile, validateFileSize, validateImageType } from '@/lib/fileUpload';
+import EditorToolbar from '@/components/notes/EditorToolbar';
+import MediaToolbar from '@/components/notes/MediaToolbar';
 
 interface NoteEditorProps {
   note: Note | null;
@@ -301,46 +300,14 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       className="h-full bg-card"
     >
       <div className="h-full bg-muted/5 border-l p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="rounded-full hover:bg-muted/80 transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Note title (optional)..."
-              className="text-xl font-medium bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 w-[300px] placeholder:text-muted-foreground/50"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="rounded-full hover:bg-red-50 text-red-500 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={handleSave}
-              className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:scale-105 transition-transform"
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4 mr-2" />
-              )}
-              {note ? 'Update' : 'Save'}
-            </Button>
-          </div>
-        </div>
+        <EditorToolbar 
+          title={title}
+          setTitle={setTitle}
+          onBack={onBack}
+          onSave={handleSave}
+          isSaving={isSaving}
+          isUpdateMode={!!note}
+        />
 
         {/* Add visible formatting toolbar here */}
         <div className="mb-4">
@@ -369,54 +336,21 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               <FloatingFormatToolbar onFormat={handleFormat} />
             </div>
             
-            <motion.div 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="flex gap-2 sticky bottom-0 bg-background/80 backdrop-blur-sm p-2 rounded-lg border shadow-lg"
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                onChange={handleAddImage}
-                className="hidden"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => fileInputRef.current?.click()}
-                className="rounded-full hover:scale-105 transition-transform"
-                title="Add Image"
-                disabled={isUploading}
-              >
-                {isUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ImageIcon className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleAddLink}
-                className="rounded-full hover:scale-105 transition-transform"
-                title="Add Link"
-              >
-                <LinkIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleToggleRecording}
-                className={`rounded-full hover:scale-105 transition-transform ${
-                  isRecording ? 'bg-red-50 text-red-500 animate-pulse border-red-200' : ''
-                }`}
-                title="Record Voice"
-              >
-                <Mic className="h-4 w-4" />
-              </Button>
-            </motion.div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              onChange={handleAddImage}
+              className="hidden"
+            />
+            
+            <MediaToolbar 
+              fileInputRef={fileInputRef}
+              isUploading={isUploading}
+              onLinkClick={handleAddLink}
+              onToggleRecording={handleToggleRecording}
+              isRecording={isRecording}
+            />
           </div>
         </ScrollArea>
       </div>
@@ -425,4 +359,3 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 };
 
 export default NoteEditor;
-
