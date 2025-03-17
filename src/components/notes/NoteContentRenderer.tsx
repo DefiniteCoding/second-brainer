@@ -1,9 +1,8 @@
+
 import React, { useMemo } from 'react';
 import { Note } from '@/contexts/NotesContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import 'katex/dist/katex.min.css';
@@ -149,8 +148,7 @@ const NoteContentRenderer: React.FC<NoteContentRendererProps> = ({
     if (typeof content === 'string') {
       return (
         <ReactMarkdown 
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeKatex]}
+          remarkPlugins={[remarkGfm]}
           components={markdownComponents}
         >
           {content}
