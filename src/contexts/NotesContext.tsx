@@ -1,34 +1,13 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+
+import React, { createContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { saveNotesToLocalStorage, loadNotesFromLocalStorage, downloadNotesAsMarkdown, metadataDB } from '@/utils/markdownStorage';
+import { Note, Tag } from '@/types/notes.types';
+import { generateDefaultTitle, parseNoteContent, getSuggestedConnections } from '@/utils/noteUtils';
 import { format } from 'date-fns';
 
-export interface Tag {
-  id: string;
-  name: string;
-  color: string;
-}
-
-export interface Note {
-  id: string;
-  title?: string;
-  content: string;
-  contentType: 'text' | 'image' | 'link' | 'audio' | 'video';
-  createdAt: Date;
-  updatedAt: Date;
-  tags: Tag[];
-  source?: string;
-  location?: { latitude: number; longitude: number };
-  mediaUrl?: string;
-  connections?: string[]; // IDs of explicitly connected notes
-  mentions?: string[]; // IDs of mentioned notes
-  concepts?: string[]; // AI-generated concepts for the note
-}
-
-// Helper function to generate default title
-const generateDefaultTitle = (date: Date = new Date()): string => {
-  return `Note ${format(date, "MMM d, yyyy 'at' h:mm a")}`;
-};
+// Re-export the types for backward compatibility
+export type { Note, Tag } from '@/types/notes.types';
 
 interface NotesContextType {
   notes: Note[];
@@ -51,7 +30,7 @@ interface NotesContextType {
   importNotes: (files: FileList) => Promise<void>;
 }
 
-const NotesContext = createContext<NotesContextType | undefined>(undefined);
+export const NotesContext = createContext<NotesContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'second-brain-notes';
 const TAGS_STORAGE_KEY = 'second-brain-tags';
@@ -70,6 +49,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [recentViews, setRecentViews] = useState<string[]>([]);
   const [dbInitialized, setDbInitialized] = useState(false);
 
+  // Initialize the metadata database
   useEffect(() => {
     console.log('Initializing metadataDB...');
     try {
@@ -81,6 +61,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  // Load initial data from localStorage
   useEffect(() => {
     console.log('Loading initial data...');
     try {
@@ -118,6 +99,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  // Save notes to localStorage when they change
   useEffect(() => {
     if (notes.length > 0) {
       console.log('Saving notes to localStorage...');
@@ -136,18 +118,21 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [notes, tags, dbInitialized]);
   
+  // Save tags to localStorage when they change
   useEffect(() => {
     localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(tags));
   }, [tags]);
   
+  // Save recent views to localStorage when they change
   useEffect(() => {
     localStorage.setItem(RECENT_VIEWS_KEY, JSON.stringify(recentViews));
   }, [recentViews]);
 
+  // Add a new note
   const addNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date();
     
-    const { mentionedNoteIds } = parseNoteContent(note.content);
+    const { mentionedNoteIds } = parseNoteContent(note.content, notes);
     
     const newNote: Note = {
       ...note,
@@ -164,13 +149,14 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const createNote = addNote;
 
+  // Update an existing note
   const updateNote = (id: string, noteUpdate: Partial<Note>) => {
     setNotes((prevNotes) =>
       prevNotes.map((note) => {
         if (note.id === id) {
           let updatedMentions = note.mentions || [];
           if (noteUpdate.content) {
-            const { mentionedNoteIds } = parseNoteContent(noteUpdate.content);
+            const { mentionedNoteIds } = parseNoteContent(noteUpdate.content, notes);
             updatedMentions = mentionedNoteIds;
           }
           
@@ -186,6 +172,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  // Delete a note
   const deleteNote = (id: string) => {
     setNotes((prevNotes) => prevNotes.filter((note) => note.id !== id));
     
@@ -198,16 +185,19 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  // Get a note by its ID
   const getNoteById = (id: string) => {
     return notes.find((note) => note.id === id);
   };
 
+  // Add a new tag
   const addTag = (tag: Omit<Tag, 'id'>) => {
     const newTag = { ...tag, id: uuidv4() };
     setTags((prevTags) => [...prevTags, newTag]);
     return newTag.id;
   };
 
+  // Delete a tag
   const deleteTag = (id: string) => {
     setTags((prevTags) => prevTags.filter((tag) => tag.id !== id));
     
@@ -220,6 +210,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  // Connect two notes
   const connectNotes = (sourceId: string, targetId: string) => {
     if (sourceId === targetId) return;
 
@@ -240,6 +231,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  // Disconnect two notes
   const disconnectNotes = (sourceId: string, targetId: string) => {
     setNotes((prevNotes) =>
       prevNotes.map((note) => {
@@ -255,6 +247,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  // Find notes that link to the given note
   const findBacklinks = (noteId: string): Note[] => {
     return notes.filter(note => 
       (note.connections && note.connections.includes(noteId)) || 
@@ -262,142 +255,19 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
-  const getSuggestedConnections = (noteId: string): Note[] => {
+  // Wrapper for the imported getSuggestedConnections function
+  const getSuggestedConnectionsWrapper = (noteId: string): Note[] => {
     const currentNote = getNoteById(noteId);
     if (!currentNote) return [];
-
-    const noteText = (currentNote.title + ' ' + currentNote.content).toLowerCase();
-    
-    const commonWords = new Set([
-      'the', 'and', 'of', 'to', 'a', 'in', 'that', 'is', 'was', 'for', 
-      'on', 'with', 'as', 'by', 'at', 'from', 'be', 'have', 'or', 
-      'this', 'are', 'it', 'an', 'but', 'not', 'what', 'all', 'were', 
-      'when', 'we', 'there', 'can', 'been', 'has', 'more', 'who'
-    ]);
-    
-    const words = noteText.split(/\W+/).filter(word => 
-      word.length > 2 && !commonWords.has(word)
-    );
-    
-    const wordFrequency: Record<string, number> = {};
-    words.forEach(word => {
-      wordFrequency[word] = (wordFrequency[word] || 0) + 1;
-    });
-    
-    const keyTerms = Object.entries(wordFrequency)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 15)
-      .map(([term]) => term);
-    
-    const bigramSeparator = ' ';
-    const bigrams: Record<string, number> = {};
-    
-    for (let i = 0; i < words.length - 1; i++) {
-      if (!commonWords.has(words[i]) && !commonWords.has(words[i+1])) {
-        const bigram = words[i] + bigramSeparator + words[i+1];
-        bigrams[bigram] = (bigrams[bigram] || 0) + 1;
-      }
-    }
-    
-    const keyPhrases = Object.entries(bigrams)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([phrase]) => phrase);
-    
-    const significantTerms = [...keyTerms, ...keyPhrases];
-    
-    return notes
-      .filter(note => note.id !== noteId)
-      .map(note => {
-        const otherNoteText = (note.title + ' ' + note.content).toLowerCase();
-        
-        const termMatches = significantTerms.filter(term => 
-          otherNoteText.includes(term)
-        ).length;
-        
-        const termScore = termMatches / significantTerms.length;
-        
-        const titleMatches = significantTerms.filter(term => 
-          note.title.toLowerCase().includes(term)
-        ).length;
-        
-        const titleBoost = titleMatches > 0 ? 0.2 : 0;
-        
-        const tagOverlap = currentNote.tags.filter(tag => 
-          note.tags.some(otherTag => otherTag.id === tag.id)
-        ).length;
-        
-        const tagScore = tagOverlap > 0 ? 0.1 * tagOverlap : 0;
-        
-        const daysDifference = Math.abs(
-          (note.createdAt.getTime() - currentNote.createdAt.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        const recencyBoost = daysDifference < 7 ? 0.1 : 0;
-        
-        const matchScore = termScore * 0.7 + titleBoost + tagScore + recencyBoost;
-        
-        return { note, score: matchScore };
-      })
-      .filter(item => item.score > 0.15)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
-      .map(item => item.note);
+    return getSuggestedConnections(noteId, currentNote, notes);
   };
 
-  const parseNoteContent = (content: string): { parsedContent: React.ReactNode, mentionedNoteIds: string[] } => {
-    if (!content) return { parsedContent: '', mentionedNoteIds: [] };
-    
-    const mentionedNoteIds: string[] = [];
-    const segments: React.ReactNode[] = [];
-    
-    const regex = /\[\[(.*?)\]\]/g;
-    let lastIndex = 0;
-    let match;
-    
-    while ((match = regex.exec(content)) !== null) {
-      const mentionTitle = match[1].trim();
-      const matchStart = match.index;
-      const matchEnd = regex.lastIndex;
-      
-      if (matchStart > lastIndex) {
-        segments.push(content.substring(lastIndex, matchStart));
-      }
-      
-      const mentionedNote = notes.find(n => n.title.toLowerCase() === mentionTitle.toLowerCase());
-      
-      if (mentionedNote) {
-        mentionedNoteIds.push(mentionedNote.id);
-        segments.push(
-          <span key={`mention-${segments.length}`} className="text-primary font-medium cursor-pointer hover:underline">
-            {mentionTitle}
-          </span>
-        );
-      } else {
-        segments.push(`[[${mentionTitle}]]`);
-      }
-      
-      lastIndex = matchEnd;
-    }
-    
-    if (lastIndex < content.length) {
-      segments.push(content.substring(lastIndex));
-    }
-    
-    // If there are no mentions, return the raw content for markdown processing
-    if (segments.length === 0) {
-      return {
-        parsedContent: content,
-        mentionedNoteIds
-      };
-    }
-    
-    // If there are mentions, join the segments with proper spacing
-    return {
-      parsedContent: segments.join(''),
-      mentionedNoteIds
-    };
+  // Wrapper for the imported parseNoteContent function
+  const parseNoteContentWrapper = (content: string): { parsedContent: React.ReactNode, mentionedNoteIds: string[] } => {
+    return parseNoteContent(content, notes);
   };
 
+  // Track recently viewed notes
   const addToRecentViews = (noteId: string) => {
     setRecentViews(prevViews => {
       const filteredViews = prevViews.filter(id => id !== noteId);
@@ -405,16 +275,19 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
+  // Get recently viewed notes
   const getRecentlyViewedNotes = (): Note[] => {
     return recentViews
       .map(id => getNoteById(id))
       .filter((note): note is Note => note !== undefined);
   };
 
+  // Export notes as markdown files
   const exportNotes = () => {
     downloadNotesAsMarkdown(notes, tags);
   };
 
+  // Import notes from files
   const importNotes = async (files: FileList): Promise<void> => {
     if (files.length === 0) return;
     
@@ -440,8 +313,8 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         connectNotes,
         disconnectNotes,
         findBacklinks,
-        getSuggestedConnections,
-        parseNoteContent,
+        getSuggestedConnections: getSuggestedConnectionsWrapper,
+        parseNoteContent: parseNoteContentWrapper,
         getRecentlyViewedNotes,
         addToRecentViews,
         exportNotes,
@@ -453,10 +326,5 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-export const useNotes = () => {
-  const context = useContext(NotesContext);
-  if (context === undefined) {
-    throw new Error('useNotes must be used within a NotesProvider');
-  }
-  return context;
-};
+// Export the hook from the local file for backward compatibility
+export { useNotes } from '@/hooks/useNotesContext';
