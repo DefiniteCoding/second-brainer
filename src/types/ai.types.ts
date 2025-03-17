@@ -10,6 +10,7 @@ export interface AIResponse {
     summary?: string;
     keywords?: string[];
     concepts?: string[];
+    suggestedConnections?: string[];
   };
 }
 

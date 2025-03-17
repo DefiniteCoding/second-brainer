@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Note } from '@/contexts/NotesContext';
 import { useNotes } from '@/contexts/NotesContext';
@@ -64,10 +65,10 @@ const NotesList: React.FC<NotesListProps> = ({
                   <div className="flex gap-2 mt-2">
                     {note.tags.map(tag => (
                       <span
-                        key={tag}
+                        key={tag.id} // Fix the key issue
                         className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs"
                       >
-                        {tag}
+                        {tag.name} {/* Fix the tag display */}
                       </span>
                     ))}
                   </div>
@@ -89,4 +90,4 @@ const NotesList: React.FC<NotesListProps> = ({
   );
 };
 
-export default NotesList; 
+export default NotesList;

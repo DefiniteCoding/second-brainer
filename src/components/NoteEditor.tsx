@@ -98,7 +98,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         const newNoteId = await createNote({ 
           title: title.trim() || 'Untitled Note', 
           content,
-          contentType: 'text'
+          contentType: 'text',
+          tags: [] // Add empty tags array to satisfy the type requirement
         });
         toast({
           title: "Note created",

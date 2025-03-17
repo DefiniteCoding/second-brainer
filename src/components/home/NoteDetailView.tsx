@@ -50,7 +50,6 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
     resetRecording
   } = useVoiceRecorder();
 
-  // Reset state when selected note changes
   useEffect(() => {
     if (selectedNote) {
       setTitle(selectedNote.title);
@@ -75,7 +74,12 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
       if (selectedNote) {
         await updateNote(selectedNote.id, { title, content });
       } else {
-        await createNote({ title, content });
+        await createNote({ 
+          title, 
+          content, 
+          contentType: 'text',
+          tags: []
+        });
       }
       toast({
         title: selectedNote ? "Note updated" : "Note created",
@@ -231,7 +235,6 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
 
     setContent(newContent);
 
-    // Restore cursor position after state update
     setTimeout(() => {
       textarea.focus();
       textarea.setSelectionRange(

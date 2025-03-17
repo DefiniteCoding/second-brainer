@@ -10,6 +10,15 @@ import NoteDetailView from '@/components/home/NoteDetailView';
 import { useAppState } from '@/hooks/useAppState';
 import { Book } from 'lucide-react';
 
+// Define a more specific type for the view state
+type ViewState = 'landing' | 'viewing' | 'editing' | 'creating';
+
+// Update the AppState interface
+interface AppState {
+  view: ViewState;
+  noteId: string | null;
+}
+
 const Index = () => {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -31,7 +40,7 @@ const Index = () => {
 
   // Load initial state from cookies
   useEffect(() => {
-    const savedState = loadState();
+    const savedState = loadState() as AppState | undefined;
     if (savedState) {
       if (savedState.view === 'landing') {
         setSelectedNote(null);
@@ -56,9 +65,9 @@ const Index = () => {
 
   // Save state changes to cookies
   useEffect(() => {
-    let currentState = {
-      view: 'landing' as const,
-      noteId: null as string | null,
+    let currentState: AppState = {
+      view: 'landing',
+      noteId: null,
     };
 
     if (isCreating) {
