@@ -7,6 +7,7 @@ class AutoSaveService {
   private saveTimeout: NodeJS.Timeout | null = null;
   private notes: Note[] = [];
   private tags: any[] = [];
+  private debouncedSave: () => void;
 
   constructor() {
     this.debouncedSave = debounce(this.performSave, 2000);
@@ -39,3 +40,4 @@ class AutoSaveService {
 }
 
 export const autoSaveService = new AutoSaveService();
+
