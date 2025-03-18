@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { Note, Tag } from '@/contexts/NotesContext';
 
@@ -85,13 +84,33 @@ export const importNotesFromMarkdown = (markdownFiles: MarkdownFile[], allTags: 
 };
 
 // LocalStorage wrapper functions with Markdown conversion
-export const saveNotesToLocalStorage = (notes: Note[], tags: Tag[]): void => {
-  // Store the full note objects for app usage
-  localStorage.setItem('second-brain-notes', JSON.stringify(notes));
-  
-  // Also store as Markdown for portability
-  const markdownFiles = exportNotesToMarkdown(notes, tags);
-  localStorage.setItem('second-brain-markdown', JSON.stringify(markdownFiles));
+export const saveNotesToLocalStorage = async (notes: Note[], tags: Tag[]): Promise<void> => {
+  try {
+    // Create backup of current storage state
+    const currentData = localStorage.getItem('second-brain-notes');
+    if (currentData) {
+      localStorage.setItem('second-brain-notes-backup', currentData);
+    }
+
+    // Store the full note objects for app usage
+    localStorage.setItem('second-brain-notes', JSON.stringify(notes));
+    
+    // Also store as Markdown for portability
+    const markdownFiles = exportNotesToMarkdown(notes, tags);
+    localStorage.setItem('second-brain-markdown', JSON.stringify(markdownFiles));
+
+    // Clear backup after successful save
+    console.log('Notes saved successfully');
+  } catch (error) {
+    console.error('Failed to save notes:', error);
+    // Attempt to restore from backup
+    const backup = localStorage.getItem('second-brain-notes-backup');
+    if (backup) {
+      localStorage.setItem('second-brain-notes', backup);
+      throw new Error('Save failed, restored from backup');
+    }
+    throw error;
+  }
 };
 
 export const loadNotesFromLocalStorage = (tags: Tag[]): Note[] => {

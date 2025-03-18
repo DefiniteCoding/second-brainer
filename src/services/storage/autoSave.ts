@@ -7,7 +7,7 @@ class AutoSaveService {
   private saveTimeout: NodeJS.Timeout | null = null;
   private notes: Note[] = [];
   private tags: any[] = [];
-  private debouncedSave: () => void;
+  private debouncedSave: (() => void);
 
   constructor() {
     this.debouncedSave = debounce(this.performSave, 2000);
@@ -22,12 +22,37 @@ class AutoSaveService {
     this.debouncedSave();
   };
 
+  private createBackup = async (notes: Note[]) => {
+    try {
+      const backupData = JSON.stringify(notes);
+      localStorage.setItem('second-brain-notes-backup', backupData);
+      console.log('Created backup of notes');
+    } catch (error) {
+      console.error('Failed to create backup:', error);
+    }
+  };
+
   private performSave = async () => {
     try {
+      // Create backup before saving
+      await this.createBackup(this.notes);
+      
+      // Perform actual save
       await saveNotesToLocalStorage(this.notes, this.tags);
       console.log('Auto-saved notes to storage');
     } catch (error) {
       console.error('Auto-save failed:', error);
+      // Try to restore from backup if save fails
+      const backup = localStorage.getItem('second-brain-notes-backup');
+      if (backup) {
+        try {
+          const restoredNotes = JSON.parse(backup);
+          await saveNotesToLocalStorage(restoredNotes, this.tags);
+          console.log('Restored from backup after save failure');
+        } catch (backupError) {
+          console.error('Failed to restore from backup:', backupError);
+        }
+      }
     }
   };
 
@@ -40,4 +65,3 @@ class AutoSaveService {
 }
 
 export const autoSaveService = new AutoSaveService();
-
