@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { saveNotesToLocalStorage, loadNotesFromLocalStorage } from '@/utils/markdownStorage';
+import { saveNotesToLocalStorage, loadNotesFromLocalStorage, downloadNotesAsMarkdown, metadataDB } from '@/utils/markdownStorage';
 import { format } from 'date-fns';
 import { indexedDBService } from '@/services/storage/indexedDB';
 import { autoSaveService } from '@/services/storage/autoSave';
@@ -27,7 +27,6 @@ export interface Note {
   concepts?: string[]; // AI-generated concepts for the note
 }
 
-// Helper function to generate default title
 const generateDefaultTitle = (date: Date = new Date()): string => {
   return `Note ${format(date, "MMM d, yyyy 'at' h:mm a")}`;
 };
@@ -178,7 +177,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem(RECENT_VIEWS_KEY, JSON.stringify(recentViews));
   }, [recentViews]);
 
-  // Initialize services
   useEffect(() => {
     const initServices = async () => {
       await indexedDBService.init();
@@ -186,7 +184,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (savedState?.activeNoteId) {
         const note = getNoteById(savedState.activeNoteId);
         if (note) {
-          // Restore active note
           setSelectedNote(note);
         }
       }
@@ -194,7 +191,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     initServices();
   }, []);
 
-  // Auto-save setup
   useEffect(() => {
     const dirtyNotes = Object.values(noteState.notes)
       .filter(({ dirty }) => dirty)
@@ -203,7 +199,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     autoSaveService.setData(dirtyNotes, tags);
   }, [noteState.notes, tags]);
 
-  // Trigger auto-save on notes/tags changes
   useEffect(() => {
     const dirtyNotes = Object.values(noteState.notes)
       .filter(({ dirty }) => dirty)
@@ -214,7 +209,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [noteState.notes, tags]);
 
-  // Save UI state changes
   useEffect(() => {
     if (selectedNote) {
       indexedDBService.saveUIState({
@@ -553,7 +547,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       segments.push(content.substring(lastIndex));
     }
     
-    // If there are no mentions, return the raw content for markdown processing
     if (segments.length === 0) {
       return {
         parsedContent: content,
@@ -561,7 +554,6 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
     }
     
-    // If there are mentions, join the segments with proper spacing
     return {
       parsedContent: segments.join(''),
       mentionedNoteIds
