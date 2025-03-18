@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { saveNotesToLocalStorage, loadNotesFromLocalStorage, downloadNotesAsMarkdown, metadataDB } from '@/utils/markdownStorage';
+import { saveNotesToLocalStorage, loadNotesFromLocalStorage } from '@/utils/markdownStorage';
 import { format } from 'date-fns';
 import { indexedDBService } from '@/services/storage/indexedDB';
 import { autoSaveService } from '@/services/storage/autoSave';
@@ -32,6 +32,16 @@ const generateDefaultTitle = (date: Date = new Date()): string => {
   return `Note ${format(date, "MMM d, yyyy 'at' h:mm a")}`;
 };
 
+interface NoteState {
+  notes: {
+    [id: string]: {
+      note: Note;
+      dirty: boolean;
+    };
+  };
+  activeNoteId: string | null;
+}
+
 interface NotesContextType {
   notes: Note[];
   addNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => string;
@@ -51,6 +61,10 @@ interface NotesContextType {
   addToRecentViews: (noteId: string) => void;
   exportNotes: () => void;
   importNotes: (files: FileList) => Promise<void>;
+  isDirty: (noteId: string) => boolean;
+  markClean: (noteId: string) => void;
+  activeNoteId: string | null;
+  setActiveNoteId: (id: string | null) => void;
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
@@ -67,7 +81,10 @@ const DEFAULT_TAGS: Tag[] = [
 ];
 
 export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [noteState, setNoteState] = useState<NoteState>({
+    notes: {},
+    activeNoteId: null
+  });
   const [tags, setTags] = useState<Tag[]>(DEFAULT_TAGS);
   const [recentViews, setRecentViews] = useState<string[]>([]);
   const [dbInitialized, setDbInitialized] = useState(false);
@@ -104,7 +121,20 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       const loadedNotes = loadNotesFromLocalStorage(tags);
       console.log('Loaded notes:', loadedNotes);
-      setNotes(loadedNotes);
+      
+      const initialNoteState: NoteState = {
+        notes: {},
+        activeNoteId: null
+      };
+      
+      loadedNotes.forEach(note => {
+        initialNoteState.notes[note.id] = {
+          note,
+          dirty: false
+        };
+      });
+      
+      setNoteState(initialNoteState);
       
       const savedRecentViews = localStorage.getItem(RECENT_VIEWS_KEY);
       if (savedRecentViews) {
@@ -122,7 +152,8 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   useEffect(() => {
-    if (notes.length > 0) {
+    if (Object.keys(noteState.notes).length > 0) {
+      const notes = Object.values(noteState.notes).map(({ note }) => note);
       console.log('Saving notes to localStorage...');
       try {
         saveNotesToLocalStorage(notes, tags);
@@ -137,7 +168,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.error('Error saving notes:', error);
       }
     }
-  }, [notes, tags, dbInitialized]);
+  }, [noteState.notes, tags, dbInitialized]);
   
   useEffect(() => {
     localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(tags));
@@ -153,7 +184,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await indexedDBService.init();
       const savedState = await indexedDBService.loadUIState();
       if (savedState?.activeNoteId) {
-        const note = notes.find(n => n.id === savedState.activeNoteId);
+        const note = getNoteById(savedState.activeNoteId);
         if (note) {
           // Restore active note
           setSelectedNote(note);
@@ -165,15 +196,23 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Auto-save setup
   useEffect(() => {
-    autoSaveService.setData(notes, tags);
-  }, [notes, tags]);
+    const dirtyNotes = Object.values(noteState.notes)
+      .filter(({ dirty }) => dirty)
+      .map(({ note }) => note);
+    
+    autoSaveService.setData(dirtyNotes, tags);
+  }, [noteState.notes, tags]);
 
   // Trigger auto-save on notes/tags changes
   useEffect(() => {
-    if (notes.length > 0) {
+    const dirtyNotes = Object.values(noteState.notes)
+      .filter(({ dirty }) => dirty)
+      .map(({ note }) => note);
+    
+    if (dirtyNotes.length > 0) {
       autoSaveService.triggerSave();
     }
-  }, [notes, tags]);
+  }, [noteState.notes, tags]);
 
   // Save UI state changes
   useEffect(() => {
@@ -185,65 +224,124 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [selectedNote]);
 
-  const addNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addNote = (noteData: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date();
     
-    const { mentionedNoteIds } = parseNoteContent(note.content);
+    const { mentionedNoteIds } = parseNoteContent(noteData.content);
     
     const newNote: Note = {
-      ...note,
+      ...noteData,
       id: uuidv4(),
-      title: note.title || generateDefaultTitle(now),
+      title: noteData.title || generateDefaultTitle(now),
       createdAt: now,
       updatedAt: now,
+      contentType: 'text',
+      tags: [],
       connections: [],
       mentions: mentionedNoteIds,
     };
-    setNotes((prevNotes) => [newNote, ...prevNotes]);
+
+    setNoteState(prev => ({
+      ...prev,
+      notes: {
+        ...prev.notes,
+        [newNote.id]: {
+          note: newNote,
+          dirty: true
+        }
+      }
+    }));
     indexedDBService.saveNoteMetadata(newNote);
+
     return newNote.id;
   };
 
   const createNote = addNote;
 
   const updateNote = (id: string, noteUpdate: Partial<Note>) => {
-    setNotes((prevNotes) =>
-      prevNotes.map((note) => {
-        if (note.id === id) {
-          let updatedMentions = note.mentions || [];
-          if (noteUpdate.content) {
-            const { mentionedNoteIds } = parseNoteContent(noteUpdate.content);
-            updatedMentions = mentionedNoteIds;
+    setNoteState(prev => {
+      const existingNoteEntry = prev.notes[id];
+      if (!existingNoteEntry) return prev;
+      
+      const existingNote = existingNoteEntry.note;
+
+      let updatedMentions = existingNote.mentions || [];
+      if (noteUpdate.content) {
+        const { mentionedNoteIds } = parseNoteContent(noteUpdate.content);
+        updatedMentions = mentionedNoteIds;
+      }
+      
+      const updatedNote = {
+        ...existingNote,
+        ...noteUpdate,
+        mentions: updatedMentions,
+        updatedAt: new Date()
+      };
+
+      indexedDBService.saveNoteMetadata(updatedNote);
+
+      return {
+        ...prev,
+        notes: {
+          ...prev.notes,
+          [id]: {
+            note: updatedNote,
+            dirty: true
           }
-          
-          const updatedNote = { 
-            ...note, 
-            ...noteUpdate, 
-            mentions: updatedMentions,
-            updatedAt: new Date() 
-          };
-          indexedDBService.saveNoteMetadata(updatedNote);
-          return updatedNote;
         }
-        return note;
-      })
-    );
+      };
+    });
   };
 
   const deleteNote = (id: string) => {
-    setNotes((prevNotes) => prevNotes.filter((note) => note.id !== id));
+    setNoteState(prev => {
+      const { [id]: deleted, ...remainingNotes } = prev.notes;
+      return {
+        ...prev,
+        notes: remainingNotes,
+        activeNoteId: prev.activeNoteId === id ? null : prev.activeNoteId
+      };
+    });
     
-    setNotes((prevNotes) =>
-      prevNotes.map((note) => ({
-        ...note,
-        connections: note.connections?.filter(connId => connId !== id) || [],
-        mentions: note.mentions?.filter(mentionId => mentionId !== id) || []
-      }))
-    );
+    setNoteState((prev) => {
+      const updatedNotes = { ...prev.notes };
+      Object.keys(updatedNotes).forEach(noteId => {
+        const noteEntry = updatedNotes[noteId];
+        if (noteEntry) {
+          const note = noteEntry.note;
+          updatedNotes[noteId] = {
+            ...noteEntry,
+            note: {
+              ...note,
+              connections: note.connections?.filter(connId => connId !== id) || [],
+              mentions: note.mentions?.filter(mentionId => mentionId !== id) || []
+            }
+          };
+        }
+      });
+      return { ...prev, notes: updatedNotes };
+    });
+  };
+
+  const isDirty = (noteId: string) => {
+    return noteState.notes[noteId]?.dirty || false;
+  };
+
+  const markClean = (noteId: string) => {
+    setNoteState(prev => ({
+      ...prev,
+      notes: {
+        ...prev.notes,
+        [noteId]: {
+          ...prev.notes[noteId],
+          dirty: false
+        }
+      }
+    }));
   };
 
   const getNoteById = (id: string) => {
-    return notes.find((note) => note.id === id);
+    return noteState.notes[id]?.note;
   };
 
   const addTag = (tag: Omit<Tag, 'id'>) => {
@@ -255,55 +353,80 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteTag = (id: string) => {
     setTags((prevTags) => prevTags.filter((tag) => tag.id !== id));
     
-    setNotes((prevNotes) =>
-      prevNotes.map((note) => ({
-        ...note,
-        tags: note.tags.filter((tag) => tag.id !== id),
-        updatedAt: new Date(),
-      }))
-    );
+    setNoteState((prev) => {
+      const updatedNotes = { ...prev.notes };
+      Object.keys(updatedNotes).forEach(noteId => {
+        const noteEntry = updatedNotes[noteId];
+        if (noteEntry) {
+          const note = noteEntry.note;
+          updatedNotes[noteId] = {
+            ...noteEntry,
+            note: {
+              ...note,
+              tags: note.tags.filter((tag) => tag.id !== id),
+              updatedAt: new Date(),
+            }
+          };
+        }
+      });
+      return { ...prev, notes: updatedNotes };
+    });
   };
 
   const connectNotes = (sourceId: string, targetId: string) => {
     if (sourceId === targetId) return;
 
-    setNotes((prevNotes) =>
-      prevNotes.map((note) => {
-        if (note.id === sourceId) {
-          const connections = note.connections || [];
-          if (!connections.includes(targetId)) {
-            return {
-              ...note,
+    setNoteState((prev) => {
+      const updatedNotes = { ...prev.notes };
+      const sourceNoteEntry = updatedNotes[sourceId];
+
+      if (sourceNoteEntry) {
+        const sourceNote = sourceNoteEntry.note;
+        const connections = sourceNote.connections || [];
+        if (!connections.includes(targetId)) {
+          updatedNotes[sourceId] = {
+            ...sourceNoteEntry,
+            note: {
+              ...sourceNote,
               connections: [...connections, targetId],
               updatedAt: new Date(),
-            };
-          }
+            }
+          };
         }
-        return note;
-      })
-    );
+      }
+
+      return { ...prev, notes: updatedNotes };
+    });
   };
 
   const disconnectNotes = (sourceId: string, targetId: string) => {
-    setNotes((prevNotes) =>
-      prevNotes.map((note) => {
-        if (note.id === sourceId) {
-          return {
-            ...note,
-            connections: (note.connections || []).filter(id => id !== targetId),
+    setNoteState((prev) => {
+      const updatedNotes = { ...prev.notes };
+      const sourceNoteEntry = updatedNotes[sourceId];
+
+      if (sourceNoteEntry) {
+        const sourceNote = sourceNoteEntry.note;
+        updatedNotes[sourceId] = {
+          ...sourceNoteEntry,
+          note: {
+            ...sourceNote,
+            connections: (sourceNote.connections || []).filter(id => id !== targetId),
             updatedAt: new Date(),
-          };
-        }
-        return note;
-      })
-    );
+          }
+        };
+      }
+
+      return { ...prev, notes: updatedNotes };
+    });
   };
 
   const findBacklinks = (noteId: string): Note[] => {
-    return notes.filter(note => 
-      (note.connections && note.connections.includes(noteId)) || 
-      (note.mentions && note.mentions.includes(noteId))
-    );
+    return Object.values(noteState.notes)
+      .map(({ note }) => note)
+      .filter(note => 
+        (note.connections && note.connections.includes(noteId)) || 
+        (note.mentions && note.mentions.includes(noteId))
+      );
   };
 
   const getSuggestedConnections = (noteId: string): Note[] => {
@@ -350,7 +473,8 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     const significantTerms = [...keyTerms, ...keyPhrases];
     
-    return notes
+    return Object.values(noteState.notes)
+      .map(({ note }) => note)
       .filter(note => note.id !== noteId)
       .map(note => {
         const otherNoteText = (note.title + ' ' + note.content).toLowerCase();
@@ -407,7 +531,9 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         segments.push(content.substring(lastIndex, matchStart));
       }
       
-      const mentionedNote = notes.find(n => n.title.toLowerCase() === mentionTitle.toLowerCase());
+      const mentionedNote = Object.values(noteState.notes)
+        .map(({ note }) => note)
+        .find(n => n.title?.toLowerCase() === mentionTitle.toLowerCase());
       
       if (mentionedNote) {
         mentionedNoteIds.push(mentionedNote.id);
@@ -456,6 +582,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const exportNotes = () => {
+    const notes = Object.values(noteState.notes).map(({ note }) => note);
     downloadNotesAsMarkdown(notes, tags);
   };
 
@@ -472,9 +599,9 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <NotesContext.Provider
       value={{
-        notes,
+        notes: Object.values(noteState.notes).map(({ note }) => note),
         addNote,
-        createNote,
+        createNote: addNote,
         updateNote,
         deleteNote,
         getNoteById,
@@ -489,7 +616,11 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         getRecentlyViewedNotes,
         addToRecentViews,
         exportNotes,
-        importNotes
+        importNotes,
+        isDirty,
+        markClean,
+        activeNoteId: noteState.activeNoteId,
+        setActiveNoteId: (id) => setNoteState(prev => ({ ...prev, activeNoteId: id }))
       }}
     >
       {children}
