@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { saveNotesToLocalStorage, loadNotesFromLocalStorage, downloadNotesAsMarkdown, metadataDB } from '@/utils/markdownStorage';
 import { format } from 'date-fns';
+import { indexedDBService } from '@/services/storage/indexedDB';
+import { autoSaveService } from '@/services/storage/autoSave';
 
 export interface Tag {
   id: string;
@@ -69,6 +71,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [tags, setTags] = useState<Tag[]>(DEFAULT_TAGS);
   const [recentViews, setRecentViews] = useState<string[]>([]);
   const [dbInitialized, setDbInitialized] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<Note | undefined>(undefined);
 
   useEffect(() => {
     console.log('Initializing metadataDB...');
@@ -144,6 +147,44 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem(RECENT_VIEWS_KEY, JSON.stringify(recentViews));
   }, [recentViews]);
 
+  // Initialize services
+  useEffect(() => {
+    const initServices = async () => {
+      await indexedDBService.init();
+      const savedState = await indexedDBService.loadUIState();
+      if (savedState?.activeNoteId) {
+        const note = notes.find(n => n.id === savedState.activeNoteId);
+        if (note) {
+          // Restore active note
+          setSelectedNote(note);
+        }
+      }
+    };
+    initServices();
+  }, []);
+
+  // Auto-save setup
+  useEffect(() => {
+    autoSaveService.setData(notes, tags);
+  }, [notes, tags]);
+
+  // Trigger auto-save on notes/tags changes
+  useEffect(() => {
+    if (notes.length > 0) {
+      autoSaveService.triggerSave();
+    }
+  }, [notes, tags]);
+
+  // Save UI state changes
+  useEffect(() => {
+    if (selectedNote) {
+      indexedDBService.saveUIState({
+        activeNoteId: selectedNote.id,
+        route: window.location.pathname
+      });
+    }
+  }, [selectedNote]);
+
   const addNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date();
     
@@ -159,6 +200,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       mentions: mentionedNoteIds,
     };
     setNotes((prevNotes) => [newNote, ...prevNotes]);
+    indexedDBService.saveNoteMetadata(newNote);
     return newNote.id;
   };
 
@@ -174,12 +216,14 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             updatedMentions = mentionedNoteIds;
           }
           
-          return { 
+          const updatedNote = { 
             ...note, 
             ...noteUpdate, 
             mentions: updatedMentions,
             updatedAt: new Date() 
           };
+          indexedDBService.saveNoteMetadata(updatedNote);
+          return updatedNote;
         }
         return note;
       })
