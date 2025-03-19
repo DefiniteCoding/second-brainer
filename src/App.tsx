@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,10 +11,19 @@ import AppLayout from "./components/AppLayout";
 import KnowledgeGraph from "./pages/KnowledgeGraph";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { useEffect } from "react";
+import { useStatePersistence } from '@/hooks/useStatePersistence';
+import { useNotes } from '@/contexts/NotesContext';
+import { useFileSystem } from '@/hooks/useFileSystem';
+import { useDebounce } from '@/hooks/useDebounce';
 
 const queryClient = new QueryClient();
 
 const App = () => {
+  const { loadState } = useStatePersistence();
+  const { notes, setNotes } = useNotes();
+  const { loadFiles } = useFileSystem();
+  const debouncedNotes = useDebounce(notes, 1000);
+
   // Set the title and favicon when the app loads
   useEffect(() => {
     // Set the document title
@@ -30,6 +38,42 @@ const App = () => {
     // Add it to the document head
     document.head.appendChild(link);
   }, []);
+
+  // Load persisted state before fetching files
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Load state from IndexedDB first
+        await loadState();
+        
+        // Then load files from File System
+        const files = await loadFiles();
+        
+        // Merge IndexedDB notes with files, preferring files for conflicts
+        const mergedNotes = mergeNotes(notes, files);
+        setNotes(mergedNotes);
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+      }
+    };
+
+    initializeApp();
+  }, []);
+
+  // Sync with File System in the background
+  useEffect(() => {
+    const syncWithFileSystem = async () => {
+      try {
+        const files = await loadFiles();
+        const mergedNotes = mergeNotes(notes, files);
+        setNotes(mergedNotes);
+      } catch (error) {
+        console.error('Failed to sync with file system:', error);
+      }
+    };
+
+    syncWithFileSystem();
+  }, [debouncedNotes]);
 
   return (
     <ErrorBoundary>
@@ -54,6 +98,23 @@ const App = () => {
       </QueryClientProvider>
     </ErrorBoundary>
   );
+};
+
+// Helper function to merge notes from different sources
+const mergeNotes = (indexedDBNotes: Note[], fileSystemNotes: Note[]): Note[] => {
+  const merged = new Map<string, Note>();
+  
+  // Add IndexedDB notes first
+  indexedDBNotes.forEach(note => {
+    merged.set(note.id, note);
+  });
+  
+  // Override with File System notes
+  fileSystemNotes.forEach(note => {
+    merged.set(note.id, note);
+  });
+  
+  return Array.from(merged.values());
 };
 
 export default App;
