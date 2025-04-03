@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Sparkles, X, Clock, RotateCcw } from 'lucide-react';
+import { Search, Sparkles, X, RotateCcw } from 'lucide-react';
 import { useNotes } from '@/contexts/NotesContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useUnifiedSearch } from '@/hooks/useUnifiedSearch';
@@ -10,11 +10,6 @@ import SearchResultsDropdown from './SearchResultsDropdown';
 import ApiKeyDialogComponent from './ApiKeyDialogComponent';
 import { Note } from '@/types/note';
 import GradientLoader from '@/components/search/GradientLoader';
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
-} from '@/components/ui/popover';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
 
 interface UnifiedSearchProps {
@@ -115,18 +110,6 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
           >
             <Sparkles className="h-4 w-4" />
           </Button>
-
-          {recentSearches.length > 0 && !searchTerm && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 rounded-full"
-              onClick={() => setShowRecentSearches(!showRecentSearches)}
-              title="Recent searches"
-            >
-              <Clock className="h-4 w-4" />
-            </Button>
-          )}
         </div>
       </div>
 
@@ -159,7 +142,6 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
                   onClick={() => handleRecentSearchClick(search)}
                 >
                   <div className="flex items-center">
-                    <Clock className="h-3 w-3 mr-2 text-muted-foreground" />
                     <span className="text-sm">{search}</span>
                   </div>
                   <Button

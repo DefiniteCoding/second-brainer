@@ -84,8 +84,8 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         exit={{ opacity: 0, y: -10 }}
         className="py-4 text-center text-muted-foreground flex items-center justify-center"
       >
-        <GradientLoader size="sm" className="mr-2" />
-        <span>Searching results...</span>
+        <GradientLoader variant="apple" size="sm" className="mr-2" />
+        <span className="text-sm font-medium">Searching...</span>
       </motion.div>
     );
   }
