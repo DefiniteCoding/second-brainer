@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Note } from '@/contexts/NotesContext';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -13,6 +12,7 @@ export const useSearch = (notes: Note[]) => {
   const [isAIEnabled, setIsAIEnabled] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
+  const [previousSearches, setPreviousSearches] = useState<{query: string, results: Note[]}[]>([]);
   
   const { toast } = useToast();
   const debouncedQuery = useDebounce(query, 300);
@@ -42,6 +42,13 @@ export const useSearch = (notes: Note[]) => {
       return;
     }
     
+    // Check cache for previous searches
+    const previousSearch = previousSearches.find(s => s.query === debouncedQuery);
+    if (previousSearch && !isAIEnabled) {
+      setSearchResults(previousSearch.results);
+      return;
+    }
+    
     const performSearch = async () => {
       if (isAIEnabled && !hasApiKey) {
         setIsApiKeyDialogOpen(true);
@@ -54,6 +61,16 @@ export const useSearch = (notes: Note[]) => {
         const results = await searchNotes(notes, debouncedQuery, {}, isAIEnabled && hasApiKey);
         setSearchResults(results);
         lastSearchQueryRef.current = debouncedQuery;
+        
+        // Cache results for non-AI searches
+        if (!isAIEnabled) {
+          setPreviousSearches(prev => {
+            // Keep last 5 searches in cache
+            const newCache = [...prev.filter(s => s.query !== debouncedQuery), { query: debouncedQuery, results }];
+            if (newCache.length > 5) newCache.shift();
+            return newCache;
+          });
+        }
       } catch (error) {
         console.error('Search error:', error);
         toast({
@@ -69,7 +86,7 @@ export const useSearch = (notes: Note[]) => {
     };
 
     performSearch();
-  }, [debouncedQuery, notes, isAIEnabled, hasApiKey, toast]);
+  }, [debouncedQuery, notes, isAIEnabled, hasApiKey, previousSearches, toast]);
 
   const clearSearch = () => {
     setQuery('');
