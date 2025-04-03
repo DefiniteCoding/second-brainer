@@ -2,8 +2,8 @@
 import { GeminiConfig } from '@/types/ai.types';
 import { getApiKey } from '@/services/ai';
 
-// Update to use a supported endpoint
-const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
+// Update to use the correct endpoint with gemini-2.0-flash model
+const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 export const callGeminiApi = async (prompt: string, config: Partial<GeminiConfig> = {}): Promise<any> => {
   const apiKey = await getApiKey();
@@ -20,11 +20,13 @@ export const callGeminiApi = async (prompt: string, config: Partial<GeminiConfig
   };
 
   try {
-    const response = await fetch(GEMINI_API_ENDPOINT, {
+    // Construct the URL with the API key
+    const url = `${GEMINI_API_ENDPOINT}?key=${apiKey}`;
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         contents: [{
@@ -76,4 +78,4 @@ export const callGeminiApi = async (prompt: string, config: Partial<GeminiConfig
     console.error('Error calling Gemini API:', error);
     throw error;
   }
-}; 
+};

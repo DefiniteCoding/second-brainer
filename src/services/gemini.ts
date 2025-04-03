@@ -13,8 +13,8 @@ export const GeminiService = {
   async validateApiKey(apiKey: string): Promise<boolean> {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      // Update to use a supported model
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      // Update to use the supported model
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       await model.generateContent("test");
       return true;
     } catch (error) {

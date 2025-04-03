@@ -9,6 +9,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useToast } from '@/components/ui/use-toast';
 import { searchNotes } from '@/services/search';
 import { useDebounce } from '@/hooks/useDebounce';
+import { GeminiService } from '@/services/gemini';
 
 interface SearchInputProps {
   notes: Note[];
@@ -20,9 +21,17 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
   const [searchTerm, setSearchTerm] = useState('');
   const [isAISearch, setIsAISearch] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(false);
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const debouncedSearchTerm = useDebounce(searchTerm, 600);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Check if API key exists
+  useEffect(() => {
+    const apiKey = GeminiService.getApiKey();
+    setHasApiKey(!!apiKey);
+  }, []);
 
   // Apply search filter, potentially using AI if enabled
   useEffect(() => {
@@ -34,12 +43,23 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
 
       setIsSearching(true);
       try {
+        // If AI search is enabled but no API key, show warning
+        if (isAISearch && !hasApiKey) {
+          toast({
+            title: "API Key Required",
+            description: "Please set up your Gemini API key in settings to use AI search.",
+            variant: "warning"
+          });
+          setIsAISearch(false);
+        }
+
         const results = await searchNotes(
           notes,
           debouncedSearchTerm,
           { contentTypes: [], tags: [] },
-          isAISearch
+          isAISearch && hasApiKey
         );
+        
         onSearchResults(results, false);
       } catch (error) {
         console.error('Search error:', error);
@@ -55,7 +75,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
     };
 
     performSearch();
-  }, [debouncedSearchTerm, isAISearch, notes, onSearchResults, toast]);
+  }, [debouncedSearchTerm, isAISearch, hasApiKey, notes, onSearchResults, toast]);
 
   // Focus the input field when search is opened
   useEffect(() => {
@@ -65,6 +85,20 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
       }, 0);
     }
   }, [open]);
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Clear search when closed
   useEffect(() => {
@@ -104,7 +138,13 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0 md:w-[400px] lg:w-[600px]">
+      <PopoverContent 
+        className="w-[300px] p-0 md:w-[400px] lg:w-[600px] z-50" 
+        ref={popoverRef}
+        align="start"
+        side="bottom"
+        sideOffset={5}
+      >
         <Command>
           <CommandInput 
             placeholder="Search notes..." 
@@ -112,7 +152,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
             value={searchTerm}
             onValueChange={setSearchTerm}
           />
-          <CommandList>
+          <CommandList className="max-h-[300px]">
             <CommandEmpty>
               {isSearching ? "Searching..." : "No results found."}
             </CommandEmpty>
