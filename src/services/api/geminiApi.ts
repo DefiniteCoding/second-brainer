@@ -1,12 +1,12 @@
 
 import { GeminiConfig } from '@/types/ai.types';
-import { getApiKey } from '@/services/ai';
+import { GeminiService } from '@/services/gemini';
 
 // Update to use the correct endpoint with gemini-2.0-flash model
 const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 export const callGeminiApi = async (prompt: string, config: Partial<GeminiConfig> = {}): Promise<any> => {
-  const apiKey = await getApiKey();
+  const apiKey = await GeminiService.getApiKey();
   if (!apiKey) {
     throw new Error('Gemini API key not found. Please set up your API key first.');
   }

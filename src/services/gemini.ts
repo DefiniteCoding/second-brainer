@@ -1,13 +1,14 @@
 
+import { getApiKey, setApiKey as saveEncryptedApiKey, hasApiKey, removeApiKey } from '@/services/ai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const GeminiService = {
-  saveApiKey: (apiKey: string): void => {
-    localStorage.setItem('gemini_api_key', apiKey);
+  saveApiKey: async (apiKey: string): Promise<void> => {
+    await saveEncryptedApiKey(apiKey);
   },
 
-  getApiKey: (): string | null => {
-    return localStorage.getItem('gemini_api_key');
+  getApiKey: async (): Promise<string | null> => {
+    return await getApiKey();
   },
 
   async validateApiKey(apiKey: string): Promise<boolean> {
@@ -23,7 +24,11 @@ export const GeminiService = {
     }
   },
 
+  hasApiKey: (): boolean => {
+    return hasApiKey();
+  },
+
   removeApiKey: (): void => {
-    localStorage.removeItem('gemini_api_key');
+    removeApiKey();
   }
 };

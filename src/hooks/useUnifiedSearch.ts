@@ -22,8 +22,11 @@ export const useUnifiedSearch = (notes: Note[]) => {
 
   // Check if API key exists on component mount
   useEffect(() => {
-    const storedKey = GeminiService.getApiKey();
-    setHasApiKey(!!storedKey);
+    const checkApiKey = async () => {
+      setHasApiKey(GeminiService.hasApiKey());
+    };
+    
+    checkApiKey();
   }, []);
 
   // Handle debounced search

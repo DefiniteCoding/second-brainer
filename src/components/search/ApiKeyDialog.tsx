@@ -18,6 +18,7 @@ const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({
   onApiKeyValidated
 }) => {
   const [apiKey, setApiKey] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
   const { toast } = useToast();
 
   const handleSaveApiKey = async () => {
@@ -30,10 +31,11 @@ const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({
       return;
     }
 
+    setIsValidating(true);
     try {
       const isValid = await GeminiService.validateApiKey(apiKey);
       if (isValid) {
-        GeminiService.saveApiKey(apiKey);
+        await GeminiService.saveApiKey(apiKey);
         onApiKeyValidated();
         onOpenChange(false);
         toast({
@@ -53,6 +55,8 @@ const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({
         description: "Failed to validate API key",
         variant: "destructive"
       });
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -79,8 +83,8 @@ const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSaveApiKey}>
-            Save API Key
+          <Button onClick={handleSaveApiKey} disabled={isValidating}>
+            {isValidating ? "Validating..." : "Save API Key"}
           </Button>
         </DialogFooter>
       </DialogContent>

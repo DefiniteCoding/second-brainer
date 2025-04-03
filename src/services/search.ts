@@ -1,3 +1,4 @@
+
 import { Note } from '@/contexts/NotesContext';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GeminiService } from './gemini';
@@ -20,7 +21,7 @@ const basicTextSearch = (notes: Note[], query: string): Note[] => {
 
 // AI-powered semantic search
 const aiSearch = async (notes: Note[], query: string): Promise<Note[]> => {
-  const apiKey = GeminiService.getApiKey();
+  const apiKey = await GeminiService.getApiKey();
   if (!apiKey) {
     console.warn('No Gemini API key found for AI search');
     return basicTextSearch(notes, query);

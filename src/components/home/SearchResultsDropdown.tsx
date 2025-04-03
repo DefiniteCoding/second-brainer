@@ -24,6 +24,22 @@ const SearchResultsDropdown: React.FC<SearchResultsDropdownProps> = ({
     navigate(`/?noteId=${noteId}`);
   };
 
+  // Highlight matching text in search results
+  const highlightText = (text: string, query: string) => {
+    if (!query.trim()) return text;
+    
+    const keywords = query.trim().split(/\s+/).filter(keyword => keyword.length > 2);
+    if (keywords.length === 0) return text;
+    
+    let result = text;
+    keywords.forEach(keyword => {
+      const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      result = result.replace(regex, '<mark class="bg-yellow-100 dark:bg-yellow-900/40 px-0.5 rounded-sm">$1</mark>');
+    });
+    
+    return result;
+  };
+
   if (isSearching) {
     return (
       <motion.div
@@ -57,10 +73,14 @@ const SearchResultsDropdown: React.FC<SearchResultsDropdownProps> = ({
             onClick={() => handleNoteSelect(note.id)}
             className="p-2 hover:bg-muted cursor-pointer rounded"
           >
-            <h4 className="font-medium">{note.title}</h4>
-            <p className="text-sm text-muted-foreground truncate">
-              {note.content.substring(0, 100)}
-            </p>
+            <h4 className="font-medium" 
+              dangerouslySetInnerHTML={{ __html: highlightText(note.title || 'Untitled', searchTerm) }} 
+            />
+            <p className="text-sm text-muted-foreground truncate"
+              dangerouslySetInnerHTML={{ 
+                __html: highlightText(note.content.substring(0, 100), searchTerm) 
+              }} 
+            />
           </div>
         ))}
       </div>

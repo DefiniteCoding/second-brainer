@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -27,13 +26,14 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
   const debouncedSearchTerm = useDebounce(searchTerm, 600);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Check if API key exists
   useEffect(() => {
-    const apiKey = GeminiService.getApiKey();
-    setHasApiKey(!!apiKey);
+    const checkApiKey = async () => {
+      setHasApiKey(GeminiService.hasApiKey());
+    };
+    
+    checkApiKey();
   }, []);
 
-  // Apply search filter, potentially using AI if enabled
   useEffect(() => {
     const performSearch = async () => {
       if (!debouncedSearchTerm.trim()) {
@@ -43,7 +43,6 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
 
       setIsSearching(true);
       try {
-        // If AI search is enabled but no API key, show warning
         if (isAISearch && !hasApiKey) {
           toast({
             title: "API Key Required",
@@ -77,7 +76,6 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
     performSearch();
   }, [debouncedSearchTerm, isAISearch, hasApiKey, notes, onSearchResults, toast]);
 
-  // Focus the input field when search is opened
   useEffect(() => {
     if (open && inputRef.current) {
       setTimeout(() => {
@@ -86,7 +84,6 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
     }
   }, [open]);
 
-  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
@@ -100,7 +97,6 @@ const SearchInput: React.FC<SearchInputProps> = ({ notes, onSearchResults }) => 
     };
   }, []);
 
-  // Clear search when closed
   useEffect(() => {
     if (!open) {
       setSearchTerm('');
