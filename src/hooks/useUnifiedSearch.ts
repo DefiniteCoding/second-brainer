@@ -20,6 +20,7 @@ export const useUnifiedSearch = (notes: Note[]) => {
   const searchInProgressRef = useRef(false);
   const lastSearchTermRef = useRef('');
   const lastSearchAIStateRef = useRef(false);
+  const preventNextSearchRef = useRef(false);
   const { recentSearches, addSearch } = useRecentSearches();
 
   // Check if API key exists on component mount
@@ -38,14 +39,17 @@ export const useUnifiedSearch = (notes: Note[]) => {
       setSearchResults([]);
       setIsSearching(false);
       searchInProgressRef.current = false;
+      preventNextSearchRef.current = false;
       return;
     }
 
     // Skip if already searching the same term with the same AI state
+    // or if we've explicitly set the preventNextSearch flag
     if (
-      searchInProgressRef.current && 
+      preventNextSearchRef.current ||
+      (searchInProgressRef.current && 
       debouncedSearchTerm === lastSearchTermRef.current && 
-      isAISearch === lastSearchAIStateRef.current
+      isAISearch === lastSearchAIStateRef.current)
     ) {
       return;
     }
@@ -73,6 +77,11 @@ export const useUnifiedSearch = (notes: Note[]) => {
           if (results.length > 0) {
             addSearch(debouncedSearchTerm);
           }
+          
+          // Set flag to prevent automatic retries with the same search term and AI state
+          if (results.length > 0) {
+            preventNextSearchRef.current = true;
+          }
         }
       } catch (error) {
         console.error('Search error:', error);
@@ -93,9 +102,15 @@ export const useUnifiedSearch = (notes: Note[]) => {
     performSearch();
   }, [debouncedSearchTerm, notes, isAISearch, hasApiKey, toast, addSearch]);
 
+  // Reset the preventNextSearch flag when search term changes
+  useEffect(() => {
+    preventNextSearchRef.current = false;
+  }, [searchTerm, isAISearch]);
+
   const clearSearch = () => {
     setSearchTerm('');
     setSearchResults([]);
+    preventNextSearchRef.current = false;
   };
 
   const toggleAISearch = () => {
@@ -103,6 +118,8 @@ export const useUnifiedSearch = (notes: Note[]) => {
       setApiKeyDialogOpen(true);
     } else {
       setIsAISearch(!isAISearch);
+      // We need to reset this flag when toggling AI search to allow a new search with the new setting
+      preventNextSearchRef.current = false;
     }
   };
 

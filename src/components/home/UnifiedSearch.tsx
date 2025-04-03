@@ -9,7 +9,6 @@ import { useUnifiedSearch } from '@/hooks/useUnifiedSearch';
 import SearchResultsDropdown from './SearchResultsDropdown';
 import ApiKeyDialogComponent from './ApiKeyDialogComponent';
 import { Note } from '@/types/note';
-import GradientLoader from '@/components/search/GradientLoader';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
 
 interface UnifiedSearchProps {
@@ -83,12 +82,8 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
           className="w-full pl-10 pr-24 h-10 bg-muted/50 border-muted-foreground/20 rounded-lg"
         />
         
-        {/* Only show the animation in the search box when searching and NOT in the dropdown */}
-        {isSearching ? (
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-        ) : (
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-        )}
+        {/* Search icon - no animation in the input field */}
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
         
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
           {searchTerm && (
