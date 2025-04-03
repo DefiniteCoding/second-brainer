@@ -3,6 +3,7 @@ import React, { useRef } from 'react';
 import { Note } from '@/contexts/NotesContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import GradientLoader from '@/components/search/GradientLoader';
 
 interface SearchResultsDropdownProps {
   searchResults: Note[];
@@ -46,9 +47,9 @@ const SearchResultsDropdown: React.FC<SearchResultsDropdownProps> = ({
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className="mt-2 text-sm text-center text-muted-foreground"
+        className="mt-2 flex items-center justify-center py-4"
       >
-        {isAISearch ? "Searching with AI..." : "Searching..."}
+        <GradientLoader variant="apple" size="md" className="mx-auto" />
       </motion.div>
     );
   }

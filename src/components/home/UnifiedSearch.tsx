@@ -84,7 +84,7 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
         />
         
         {isSearching ? (
-          <GradientLoader className="absolute left-3 top-1/2 -translate-y-1/2" />
+          <GradientLoader className="absolute left-3 top-1/2 -translate-y-1/2" variant="apple" />
         ) : (
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
         )}

@@ -82,10 +82,9 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className="py-4 text-center text-muted-foreground flex items-center justify-center"
+        className="py-4 text-center flex items-center justify-center"
       >
-        <GradientLoader variant="apple" size="sm" className="mr-2" />
-        <span className="text-sm font-medium">Searching...</span>
+        <GradientLoader variant="apple" size="md" className="mx-auto" />
       </motion.div>
     );
   }
