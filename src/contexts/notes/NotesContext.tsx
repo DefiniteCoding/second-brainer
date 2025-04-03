@@ -1,8 +1,7 @@
 
-import React, { createContext, useContext, useEffect } from 'react';
-import { Note, Tag } from '@/types/note';
+import React, { createContext, useContext } from 'react';
 import { NotesContextType } from './types';
-import { useNotesState } from './notesHooks';
+import { useNotesState } from './hooks';
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
 
@@ -23,6 +22,3 @@ export const useNotes = () => {
   }
   return context;
 };
-
-// Re-export the types from types/note.ts for convenience
-export type { Note, Tag };
