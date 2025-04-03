@@ -11,9 +11,11 @@ interface SearchBarProps {
   onSearchResults: (results: Note[] | null, isSearching: boolean) => void;
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ onNoteSelected, onAddNote, onSearchResults }) => {
-  const { notes } = useNotes();
-
+const SearchBar: React.FC<SearchBarProps> = ({ 
+  onNoteSelected, 
+  onAddNote, 
+  onSearchResults 
+}) => {
   return (
     <div className="border-b">
       <div className="container flex h-14 max-w-screen-2xl items-center px-4">
