@@ -11,7 +11,7 @@ import NotFound from "./pages/NotFound";
 import AppLayout from "./components/AppLayout";
 import KnowledgeGraph from "./pages/KnowledgeGraph";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNotes } from '@/contexts/NotesContext';
 import { useFileSystem } from '@/hooks/useFileSystem';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -30,8 +30,9 @@ const AppWithRouter = () => {
 
 const AppContent = () => {
   const { notes, setNotes } = useNotes();
-  const { loadFiles } = useFileSystem();
+  const { loadFiles, hasDirectoryAccess } = useFileSystem();
   const debouncedNotes = useDebounce(notes, 1000);
+  const [fileSystemInitialized, setFileSystemInitialized] = useState(false);
 
   useEffect(() => {
     document.title = "SecondBrainer";
@@ -42,34 +43,48 @@ const AppContent = () => {
     document.head.appendChild(link);
   }, []);
 
+  // Initialize file system only once
   useEffect(() => {
     const initializeApp = async () => {
+      if (fileSystemInitialized) {
+        return;
+      }
+      
       try {
         const files = await loadFiles();
-        if (files.length > 0) {
+        if (files && files.length > 0) {
           setNotes(files);
         }
+        setFileSystemInitialized(true);
       } catch (error) {
         console.error('Failed to initialize app:', error);
+        setFileSystemInitialized(true); // Mark as initialized even on error
       }
     };
 
     initializeApp();
-  }, []);
+  }, [loadFiles, setNotes, fileSystemInitialized]);
 
+  // Only sync with file system if we have directory access and notes have changed
   useEffect(() => {
+    if (!hasDirectoryAccess || !fileSystemInitialized) {
+      return; // Skip if no directory access or not initialized
+    }
+    
     const syncWithFileSystem = async () => {
       try {
         const files = await loadFiles();
-        const mergedNotes = mergeNotes(notes, files);
-        setNotes(mergedNotes);
+        if (files && files.length > 0) {
+          const mergedNotes = mergeNotes(notes, files);
+          setNotes(mergedNotes);
+        }
       } catch (error) {
         console.error('Failed to sync with file system:', error);
       }
     };
 
     syncWithFileSystem();
-  }, [debouncedNotes]);
+  }, [debouncedNotes, loadFiles, setNotes, hasDirectoryAccess, fileSystemInitialized]);
 
   return (
     <AppLayout>

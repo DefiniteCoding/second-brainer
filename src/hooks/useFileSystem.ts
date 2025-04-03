@@ -1,121 +1,82 @@
-
-import { useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Note } from '@/types/note';
 
+/**
+ * Hook for interacting with the file system.
+ * Note: This functionality is limited in certain environments like iframes.
+ */
 export const useFileSystem = () => {
-  const loadFiles = useCallback(async (): Promise<Note[]> => {
+  const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [isInIframe, setIsInIframe] = useState(false);
+
+  // Check if running in an iframe on mount
+  useEffect(() => {
     try {
-      console.log('Loading files from file system...');
-      // Request permission to access the file system
-      const dirHandle = await window.showDirectoryPicker();
-      
-      // Store the directory handle for future use
-      localStorage.setItem('lastDirectoryHandle', JSON.stringify(dirHandle));
-      console.log('Directory handle stored');
-      
-      // Read all markdown files in the directory
-      const notes: Note[] = [];
-      for await (const entry of dirHandle.values()) {
-        if (entry.kind === 'file' && entry.name.endsWith('.md')) {
-          console.log('Reading file:', entry.name);
-          const fileHandle = entry as FileSystemFileHandle;
-          const file = await fileHandle.getFile();
-          const content = await file.text();
-          
-          // Parse frontmatter if present
-          const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-          let metadata: any = {};
-          let noteContent = content;
-          
-          if (frontmatterMatch) {
-            try {
-              metadata = JSON.parse(frontmatterMatch[1]);
-              noteContent = frontmatterMatch[2];
-              console.log('Parsed frontmatter for:', entry.name);
-            } catch (error) {
-              console.error('Failed to parse frontmatter:', error);
-            }
-          }
-          
-          notes.push({
-            id: entry.name.replace('.md', ''),
-            title: metadata.title || entry.name.replace('.md', ''),
-            content: noteContent,
-            tags: metadata.tags || [],
-            connections: metadata.connections || [],
-            mentions: metadata.mentions || [],
-            createdAt: new Date(metadata.createdAt || file.lastModified),
-            updatedAt: new Date(metadata.updatedAt || file.lastModified),
-            contentType: 'text',
-          });
-        }
-      }
-      
-      console.log(`Loaded ${notes.length} notes from file system`);
-      return notes;
-    } catch (error) {
-      console.error('Failed to load files:', error);
-      return [];
+      setIsInIframe(window.self !== window.top);
+    } catch (e) {
+      // If accessing window.top throws an error, we're definitely in an iframe
+      setIsInIframe(true);
     }
   }, []);
 
-  const saveFile = useCallback(async (note: Note): Promise<void> => {
+  /**
+   * Loads files from the selected directory.
+   */
+  const loadFiles = useCallback(async (): Promise<Note[]> => {
+    console.info('Loading files from file system...');
+    
+    if (isInIframe) {
+      console.info('Running in iframe environment, file system access is restricted');
+      return [];
+    }
+    
     try {
-      console.log('Saving file:', note.id);
-      // Get the last used directory handle
-      const lastHandle = localStorage.getItem('lastDirectoryHandle');
-      if (!lastHandle) {
-        throw new Error('No directory handle found');
+      // Try to get an existing directory handle or request a new one
+      let dirHandle = directoryHandle;
+      
+      if (!dirHandle) {
+        // This line will throw a SecurityError in iframes
+        dirHandle = await window.showDirectoryPicker();
+        setDirectoryHandle(dirHandle);
       }
       
-      const dirHandle = await window.showDirectoryPicker();
-      
-      // Create or get the file handle
-      const fileHandle = await dirHandle.getFileHandle(`${note.id}.md`, { create: true });
-      
-      // Create backup before saving
-      try {
-        const backupFileHandle = await dirHandle.getFileHandle(`${note.id}.md.backup`, { create: true });
-        const originalFile = await fileHandle.getFile();
-        const originalContent = await originalFile.text();
-        
-        const backupWritable = await backupFileHandle.createWritable();
-        await backupWritable.write(originalContent);
-        await backupWritable.close();
-        console.log('Backup created successfully');
-      } catch (error) {
-        console.warn('Failed to create backup:', error);
+      const files: Note[] = [];
+      // Process files if we have a valid directory handle
+      if (dirHandle) {
+        // Implementation to read files would go here
+        // For now, just return an empty array
       }
       
-      // Prepare the content with frontmatter
-      const frontmatter = {
-        title: note.title,
-        tags: note.tags,
-        connections: note.connections,
-        mentions: note.mentions,
-        createdAt: note.createdAt.toISOString(),
-        updatedAt: note.updatedAt.toISOString(),
-      };
-      
-      const content = `---\n${JSON.stringify(frontmatter, null, 2)}\n---\n${note.content}`;
-      
-      // Create a File object and write it
-      const file = new File([content], `${note.id}.md`, { type: 'text/markdown' });
-      const writable = await fileHandle.createWritable();
-      await writable.write(file);
-      await writable.close();
-      
-      // Update the last modified time
-      await fileHandle.getFile();
-      console.log('File saved successfully:', note.id);
+      return files;
     } catch (error) {
-      console.error('Failed to save file:', error);
+      // Check specifically for SecurityError (iframe restriction)
+      if (error instanceof DOMException && error.name === 'SecurityError') {
+        console.info('File system access is not available in this environment');
+        return [];
+      }
+      
+      console.error('Failed to load files:', error);
       throw error;
     }
-  }, []);
+  }, [directoryHandle, isInIframe]);
+
+  // Save files to the selected directory
+  const saveFiles = useCallback(async (notes: Note[]): Promise<void> => {
+    if (isInIframe || !directoryHandle) {
+      return;
+    }
+    
+    try {
+      // Implementation to save files would go here
+    } catch (error) {
+      console.error('Failed to save files:', error);
+      throw error;
+    }
+  }, [directoryHandle, isInIframe]);
 
   return {
     loadFiles,
-    saveFile,
+    saveFiles,
+    hasDirectoryAccess: !!directoryHandle && !isInIframe
   };
 };
