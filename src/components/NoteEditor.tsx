@@ -1,59 +1,55 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Note, useNotes } from '@/contexts/NotesContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/components/ui/use-toast';
-import FormattingToolbar from '@/components/notes/FormattingToolbar';
-import { FloatingFormatToolbar } from '@/components/notes/FloatingFormatToolbar';
-import { motion } from 'framer-motion';
-import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
-import { useNavigate } from 'react-router-dom';
+import { ChevronLeft, Link, Image, Mic, Save, X } from 'lucide-react';
 import { uploadFile, validateFileSize, validateImageType } from '@/lib/fileUpload';
-import EditorToolbar from '@/components/notes/EditorToolbar';
-import MediaToolbar from '@/components/notes/MediaToolbar';
+import { useToast } from '@/components/ui/use-toast';
+import { motion } from 'framer-motion';
+import { fadeIn } from '@/lib/animations';
+import { generateDefaultTitle } from '@/contexts/notes/constants';
+import { useNavigate } from 'react-router-dom';
+import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
+import { FormattingToolbar } from '@/components/notes/FormattingToolbar';
+import TagSelector from '@/components/TagSelector';
 
 interface NoteEditorProps {
-  note: Note | null;
+  note?: Note | null;
   onBack: () => void;
-  isCreating: boolean;
+  isCreating?: boolean;
 }
 
-const NoteEditor: React.FC<NoteEditorProps> = ({
-  note,
-  onBack,
-  isCreating
-}) => {
+const NoteEditor: React.FC<NoteEditorProps> = ({ note, onBack, isCreating = false }) => {
+  const { createNote, updateNote, addToRecentViews } = useNotes();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [title, setTitle] = useState(note?.title || '');
   const [content, setContent] = useState(note?.content || '');
+  const [tags, setTags] = useState(note?.tags || []);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const { addNote, updateNote } = useNotes();
-  const { toast } = useToast();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
-  
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
   const {
     isRecording,
+    audioURL,
+    error: recordingError,
     startRecording,
     stopRecording,
-    resetRecording,
-    audioURL,
-    error: recordingError
+    resetRecording
   } = useVoiceRecorder();
 
+  // Default title if empty
   useEffect(() => {
-    if (note) {
-      setTitle(note.title || '');
-      setContent(note.content);
-    } else {
-      setTitle('');
-      setContent('');
+    if (isCreating && !title) {
+      setTitle(generateDefaultTitle(new Date()));
     }
-  }, [note]);
+  }, [isCreating, title]);
 
-  // Handle audio recording results
+  // Handle audio recording result
   useEffect(() => {
     if (audioURL) {
       const audioMarkdown = `🎤 [Voice Recording](${audioURL})`;
@@ -74,44 +70,41 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   }, [recordingError, toast]);
 
   const handleSave = async () => {
-    if (!content.trim()) {
+    if (!title.trim()) {
       toast({
-        title: "Content required",
-        description: "Please enter some content for your note.",
+        title: "Title required",
+        description: "Please enter a title for your note.",
         variant: "destructive"
       });
       return;
     }
 
     setIsSaving(true);
+
     try {
       if (note) {
-        await updateNote(note.id, { 
-          title: title.trim() || 'Untitled Note', 
-          content 
-        });
+        await updateNote(note.id, { title, content, tags });
         toast({
           title: "Note updated",
           description: "Your note has been saved successfully.",
         });
       } else {
-        const newNote = { 
-          title: title.trim() || 'Untitled Note', 
-          content,
-          contentType: 'text' as const, // Explicitly type as a literal
-          tags: [] // Add empty tags array to satisfy the type requirement
-        };
-        
-        const newNoteId = await addNote(newNote);
-        toast({
-          title: "Note created",
-          description: "Your note has been saved successfully.",
+        const noteId = await createNote({ 
+          title, 
+          content, 
+          contentType: 'text',
+          tags
         });
         
-        // Navigate to the newly created note
-        if (newNoteId) {
-          navigate(`/?noteId=${newNoteId}`, { replace: true });
+        if (noteId) {
+          addToRecentViews(noteId);
+          navigate(`/?noteId=${noteId}`, { replace: true });
         }
+        
+        toast({
+          title: "Note created",
+          description: "Your new note has been saved successfully.",
+        });
       }
       onBack();
     } catch (error) {
@@ -126,106 +119,14 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   };
 
-  const handleFormat = (type: string) => {
-    if (!textareaRef.current) return;
-
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.substring(start, end);
-
-    let prefix = '';
-    let suffix = '';
-    let cursorOffset = 0;
-
-    switch (type) {
-      case 'bold':
-        prefix = '**';
-        suffix = '**';
-        cursorOffset = 2;
-        break;
-      case 'italic':
-        prefix = '*';
-        suffix = '*';
-        cursorOffset = 1;
-        break;
-      case 'heading':
-        prefix = '# ';
-        suffix = '';
-        cursorOffset = 2;
-        break;
-      case 'quote':
-        prefix = '> ';
-        suffix = '';
-        cursorOffset = 2;
-        break;
-      case 'ul':
-        prefix = '- ';
-        suffix = '';
-        cursorOffset = 2;
-        break;
-      case 'ol':
-        prefix = '1. ';
-        suffix = '';
-        cursorOffset = 3;
-        break;
-      case 'code':
-        if (selectedText.includes('\n')) {
-          prefix = '```\n';
-          suffix = '\n```';
-          cursorOffset = 4;
-        } else {
-          prefix = '`';
-          suffix = '`';
-          cursorOffset = 1;
-        }
-        break;
-      case 'link':
-        const url = prompt('Enter URL:', 'https://');
-        if (url) {
-          prefix = '[';
-          suffix = `](${url})`;
-          cursorOffset = 1;
-        } else {
-          return;
-        }
-        break;
-    }
-
-    const newContent = 
-      content.substring(0, start) +
-      prefix +
-      selectedText +
-      suffix +
-      content.substring(end);
-
-    setContent(newContent);
-
-    // Restore cursor position and focus
-    requestAnimationFrame(() => {
-      textarea.focus();
-      if (selectedText) {
-        textarea.setSelectionRange(
-          start + prefix.length,
-          end + prefix.length
-        );
-      } else {
-        textarea.setSelectionRange(
-          start + prefix.length,
-          start + prefix.length
-        );
-      }
-    });
-  };
-
-  const handleAddImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleAddImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     if (!validateImageType(file)) {
       toast({
         title: "Invalid file type",
-        description: "Please select an image file.",
+        description: "Please select an image file (JPEG, PNG, GIF, or WebP).",
         variant: "destructive"
       });
       return;
@@ -243,20 +144,14 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     try {
       setIsUploading(true);
       const dataUrl = await uploadFile(file);
-      const imageMarkdown = `![${file.name}](${dataUrl})`;
       
-      const textarea = textareaRef.current;
-      if (textarea) {
-        const cursorPos = textarea.selectionStart;
-        const newContent = content.substring(0, cursorPos) + 
-          `\n${imageMarkdown}\n` + 
-          content.substring(cursorPos);
-        setContent(newContent);
-      }
+      // Add image markdown to content
+      const imageMarkdown = `![${file.name}](${dataUrl})`;
+      setContent(prev => prev + (prev ? '\n\n' : '') + imageMarkdown);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to add image. Please try again.",
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -268,91 +163,196 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   };
 
   const handleAddLink = () => {
+    const linkText = window.prompt('Enter link text:');
     const url = window.prompt('Enter URL:');
-    if (!url) return;
-
-    const textarea = textareaRef.current;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const selectedText = content.substring(start, end);
-      const linkText = selectedText || 'link text';
-      const markdown = `[${linkText}](${url})`;
-
-      const newContent = content.substring(0, start) + markdown + content.substring(end);
-      setContent(newContent);
+    
+    if (linkText && url) {
+      const linkMarkdown = `[${linkText}](${url})`;
+      setContent(prev => prev + (prev ? '\n\n' : '') + linkMarkdown);
     }
   };
 
   const handleToggleRecording = async () => {
     if (isRecording) {
-      await stopRecording();
+      stopRecording();
     } else {
       await startRecording();
     }
   };
 
+  const handleFormatText = (formatType: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    
+    let formattedText = '';
+    let newCursorPosition = start;
+    
+    switch (formatType) {
+      case 'bold':
+        formattedText = `**${selectedText}**`;
+        newCursorPosition = start + 2;
+        break;
+      case 'italic':
+        formattedText = `_${selectedText}_`;
+        newCursorPosition = start + 1;
+        break;
+      case 'h1':
+        formattedText = `# ${selectedText}`;
+        newCursorPosition = start + 2;
+        break;
+      case 'h2':
+        formattedText = `## ${selectedText}`;
+        newCursorPosition = start + 3;
+        break;
+      case 'h3':
+        formattedText = `### ${selectedText}`;
+        newCursorPosition = start + 4;
+        break;
+      case 'quote':
+        formattedText = `> ${selectedText}`;
+        newCursorPosition = start + 2;
+        break;
+      case 'code':
+        formattedText = `\`${selectedText}\``;
+        newCursorPosition = start + 1;
+        break;
+      case 'link':
+        const url = window.prompt('Enter URL:', 'https://');
+        if (url) {
+          formattedText = `[${selectedText || 'Link'}](${url})`;
+          newCursorPosition = start + 1;
+        } else {
+          return;
+        }
+        break;
+      default:
+        return;
+    }
+    
+    const newContent = 
+      content.substring(0, start) + 
+      formattedText + 
+      content.substring(end);
+      
+    setContent(newContent);
+    
+    // Set cursor position after the formatting is applied
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        newCursorPosition,
+        newCursorPosition + selectedText.length
+      );
+    }, 0);
+  };
+
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="h-full bg-card"
+    <motion.div
+      variants={fadeIn}
+      initial="initial"
+      animate="animate"
+      className="h-full flex flex-col overflow-hidden bg-card"
     >
-      <div className="h-full bg-muted/5 border-l p-4">
-        <EditorToolbar 
-          title={title}
-          setTitle={setTitle}
-          onBack={onBack}
-          onSave={handleSave}
-          isSaving={isSaving}
-          isUpdateMode={!!note}
-        />
-
-        {/* Add visible formatting toolbar here */}
-        <div className="mb-4">
-          <FormattingToolbar
-            onBoldClick={() => handleFormat('bold')}
-            onItalicClick={() => handleFormat('italic')}
-            onHeadingClick={() => handleFormat('heading')}
-            onQuoteClick={() => handleFormat('quote')}
-            onCodeClick={() => handleFormat('code')}
-            onLinkClick={() => handleFormat('link')}
-            onBulletListClick={() => handleFormat('ul')}
-            onNumberedListClick={() => handleFormat('ol')}
-          />
+      {/* Header */}
+      <div className="p-4 border-b flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onBack}
+            className="rounded-full"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-lg font-medium">
+            {isCreating ? "Create Note" : "Edit Note"}
+          </h1>
         </div>
-
-        <ScrollArea className="h-[calc(100vh-240px)]">
-          <div className="space-y-4">
-            <div className="relative">
-              <Textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Start writing your note..."
-                className="min-h-[300px] bg-transparent border-none focus-visible:ring-0 resize-none placeholder:text-muted-foreground/50 text-base leading-relaxed"
-              />
-              <FloatingFormatToolbar onFormat={handleFormat} />
-            </div>
-            
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept="image/*"
-              onChange={handleAddImage}
-              className="hidden"
-            />
-            
-            <MediaToolbar 
-              fileInputRef={fileInputRef}
-              isUploading={isUploading}
-              onLinkClick={handleAddLink}
-              onToggleRecording={handleToggleRecording}
-              isRecording={isRecording}
-            />
-          </div>
-        </ScrollArea>
+        
+        <Button onClick={handleSave} disabled={isSaving} className="gap-1.5">
+          {isSaving ? (
+            <>
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              Save
+            </>
+          )}
+        </Button>
+      </div>
+      
+      {/* Editor */}
+      <div className="flex-1 overflow-auto p-4 space-y-4">
+        <Input
+          type="text"
+          placeholder="Note title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="text-lg font-medium"
+        />
+        
+        <FormattingToolbar onFormat={handleFormatText} />
+        
+        <TagSelector 
+          selectedTags={tags} 
+          onTagsChange={setTags} 
+        />
+        
+        <Textarea
+          ref={textareaRef}
+          placeholder="What's on your mind?"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="min-h-[300px] resize-none flex-1"
+        />
+      </div>
+      
+      {/* Toolbar */}
+      <div className="p-3 border-t flex items-center gap-2">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleAddImage}
+          accept="image/*"
+          className="hidden"
+        />
+        
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          ) :  (
+            <Image className="h-4 w-4" />
+          )}
+        </Button>
+        
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleAddLink}
+        >
+          <Link className="h-4 w-4" />
+        </Button>
+        
+        <Button
+          variant="outline" 
+          size="icon"
+          onClick={handleToggleRecording}
+          className={isRecording ? "text-red-500 border-red-500" : ""}
+        >
+          <Mic className={`h-4 w-4 ${isRecording ? 'animate-pulse' : ''}`} />
+        </Button>
       </div>
     </motion.div>
   );

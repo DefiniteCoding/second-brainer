@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { FloatingFormatToolbar } from '@/components/notes/FloatingFormatToolbar'
 import { motion, AnimatePresence } from 'framer-motion';
 import NoteEditor from '@/components/NoteEditor';
 import { fadeIn } from '@/lib/animations';
+import TagSelector from '@/components/TagSelector';
 
 interface NoteDetailViewProps {
   selectedNote: Note | null;
@@ -37,6 +39,7 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
   const { toast } = useToast();
   const [title, setTitle] = useState(selectedNote?.title || '');
   const [content, setContent] = useState(selectedNote?.content || '');
+  const [tags, setTags] = useState(selectedNote?.tags || []);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -54,9 +57,11 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
     if (selectedNote) {
       setTitle(selectedNote.title);
       setContent(selectedNote.content);
+      setTags(selectedNote.tags);
     } else {
       setTitle('');
       setContent('');
+      setTags([]);
     }
   }, [selectedNote]);
 
@@ -72,13 +77,13 @@ const NoteDetailView: React.FC<NoteDetailViewProps> = ({
 
     try {
       if (selectedNote) {
-        await updateNote(selectedNote.id, { title, content });
+        await updateNote(selectedNote.id, { title, content, tags });
       } else {
         await createNote({ 
           title, 
           content, 
           contentType: 'text',
-          tags: []
+          tags
         });
       }
       toast({

@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { Note, Tag } from '@/types/note';
 import { NotesContextType } from './types';
 import { useNotesState } from './notesHooks';
