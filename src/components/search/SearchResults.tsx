@@ -2,10 +2,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { Note } from '@/contexts/NotesContext';
+import { Note } from '@/types/note';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import GradientLoader from './GradientLoader';
 
 interface SearchResultsProps {
   results: Note[];
@@ -81,9 +82,10 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className="py-4 text-center text-muted-foreground"
+        className="py-4 text-center text-muted-foreground flex items-center justify-center"
       >
-        Searching{isAIEnabled ? " with AI" : ""}...
+        <GradientLoader size="sm" className="mr-2" />
+        <span>Searching results...</span>
       </motion.div>
     );
   }

@@ -1,10 +1,11 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { Note } from '@/contexts/NotesContext';
+import { Note } from '@/types/note';
 import { useDebounce } from '@/hooks/useDebounce';
 import { searchNotes } from '@/services/search';
 import { GeminiService } from '@/services/gemini';
 import { useToast } from '@/components/ui/use-toast';
+import { useRecentSearches } from '@/hooks/useRecentSearches';
 
 export const useUnifiedSearch = (notes: Note[]) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,6 +20,7 @@ export const useUnifiedSearch = (notes: Note[]) => {
   const searchInProgressRef = useRef(false);
   const lastSearchTermRef = useRef('');
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const { recentSearches, addSearch } = useRecentSearches();
 
   // Check if API key exists on component mount
   useEffect(() => {
@@ -60,6 +62,12 @@ export const useUnifiedSearch = (notes: Note[]) => {
       try {
         const results = await searchNotes(notes, debouncedSearchTerm, {}, isAISearch);
         setSearchResults(results);
+        
+        // Only add to recent searches if it's a user-initiated search (not auto-search from debounce)
+        // and if we got meaningful results
+        if (results.length > 0) {
+          addSearch(debouncedSearchTerm);
+        }
       } catch (error) {
         console.error('Search error:', error);
         toast({
@@ -74,7 +82,7 @@ export const useUnifiedSearch = (notes: Note[]) => {
     };
 
     performSearch();
-  }, [debouncedSearchTerm, notes, isAISearch, hasApiKey, toast]);
+  }, [debouncedSearchTerm, notes, isAISearch, hasApiKey, toast, addSearch]);
 
   const clearSearch = () => {
     setSearchTerm('');
@@ -99,6 +107,7 @@ export const useUnifiedSearch = (notes: Note[]) => {
     apiKeyDialogOpen,
     setApiKeyDialogOpen,
     clearSearch,
-    toggleAISearch
+    toggleAISearch,
+    recentSearches,
   };
 };

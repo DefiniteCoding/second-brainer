@@ -5,14 +5,23 @@ import { callGeminiApi } from '../api/geminiApi';
 export const extractKeywords = async (content: string): Promise<AIResponse> => {
   try {
     const prompt = `
-      Extract the most important keywords from the following text.
+      Based on the following text, extract or generate between 3-5 general category tags that would best classify this content.
+      
+      Focus on identifying broad themes, topics, or categories that would help organize this content in a knowledge management system.
+      Don't just extract specific words from the text - instead, determine the general categories or domains this content belongs to.
+      
+      For example:
+      - A recipe might get tags like "Cooking", "Food", "Recipes", not specific ingredients
+      - A programming tutorial might get "Programming", "Web Development", "Tutorial", not specific code terms
+      - A journal entry might get "Journal", "Personal", "Reflection", not specific events mentioned
+      
       Return only a JSON array of strings with no additional text.
       
       Text to analyze:
       ${content}
     `;
 
-    const data = await callGeminiApi(prompt, { temperature: 0.1 });
+    const data = await callGeminiApi(prompt, { temperature: 0.2 });
     const keywordsText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!keywordsText) {
@@ -44,4 +53,4 @@ export const extractKeywords = async (content: string): Promise<AIResponse> => {
       success: false 
     };
   }
-}; 
+};

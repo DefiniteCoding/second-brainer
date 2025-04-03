@@ -1,14 +1,21 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Sparkles, X } from 'lucide-react';
+import { Search, Sparkles, X, Clock, RotateCcw } from 'lucide-react';
 import { useNotes } from '@/contexts/NotesContext';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useUnifiedSearch } from '@/hooks/useUnifiedSearch';
 import SearchResultsDropdown from './SearchResultsDropdown';
 import ApiKeyDialogComponent from './ApiKeyDialogComponent';
-import { Note } from '@/contexts/NotesContext';
+import { Note } from '@/types/note';
+import GradientLoader from '@/components/search/GradientLoader';
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from '@/components/ui/popover';
+import { useRecentSearches } from '@/hooks/useRecentSearches';
 
 interface UnifiedSearchProps {
   onSearchResults: (results: Note[] | null, isSearching: boolean) => void;
@@ -17,6 +24,7 @@ interface UnifiedSearchProps {
 export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults }) => {
   const { notes } = useNotes();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showRecentSearches, setShowRecentSearches] = useState(false);
   
   const {
     searchTerm,
@@ -28,8 +36,11 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
     apiKeyDialogOpen,
     setApiKeyDialogOpen,
     clearSearch,
-    toggleAISearch
+    toggleAISearch,
+    recentSearches,
   } = useUnifiedSearch(notes);
+
+  const { removeSearch, clearRecentSearches } = useRecentSearches();
 
   // Update parent component with search results
   useEffect(() => {
@@ -41,6 +52,7 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         clearSearch();
+        setShowRecentSearches(false);
       }
     };
 
@@ -55,6 +67,11 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
     toggleAISearch();
   };
 
+  const handleRecentSearchClick = (query: string) => {
+    setSearchTerm(query);
+    setShowRecentSearches(false);
+  };
+
   return (
     <div className="w-full relative" ref={dropdownRef}>
       <div className="relative">
@@ -62,10 +79,20 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          onFocus={() => {
+            if (!searchTerm && recentSearches.length > 0) {
+              setShowRecentSearches(true);
+            }
+          }}
           placeholder="Search notes..."
           className="w-full pl-10 pr-24 h-10 bg-muted/50 border-muted-foreground/20 rounded-lg"
         />
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+        
+        {isSearching ? (
+          <GradientLoader className="absolute left-3 top-1/2 -translate-y-1/2" />
+        ) : (
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+        )}
         
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
           {searchTerm && (
@@ -88,10 +115,70 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
           >
             <Sparkles className="h-4 w-4" />
           </Button>
+
+          {recentSearches.length > 0 && !searchTerm && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full"
+              onClick={() => setShowRecentSearches(!showRecentSearches)}
+              title="Recent searches"
+            >
+              <Clock className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
       <AnimatePresence>
+        {showRecentSearches && recentSearches.length > 0 && !searchTerm && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute w-full mt-1 p-2 bg-card rounded-md border shadow-md z-50"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium">Recent Searches</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs"
+                onClick={clearRecentSearches}
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Clear
+              </Button>
+            </div>
+
+            <div className="max-h-[200px] overflow-y-auto">
+              {recentSearches.map((search, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-1.5 hover:bg-muted rounded-sm cursor-pointer"
+                  onClick={() => handleRecentSearchClick(search)}
+                >
+                  <div className="flex items-center">
+                    <Clock className="h-3 w-3 mr-2 text-muted-foreground" />
+                    <span className="text-sm">{search}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeSearch(search);
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         <SearchResultsDropdown 
           searchResults={searchResults} 
           isSearching={isSearching}
