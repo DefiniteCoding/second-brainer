@@ -1,5 +1,5 @@
 
-import { Note } from '@/contexts/NotesContext';
+import { Note } from '@/types/note';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GeminiService } from './gemini';
 
@@ -10,6 +10,8 @@ export interface SearchOptions {
 
 // Basic search without AI
 const basicTextSearch = (notes: Note[], query: string): Note[] => {
+  if (!query.trim()) return [];
+  
   return notes.filter(note => 
     note.title.toLowerCase().includes(query.toLowerCase()) ||
     note.content.toLowerCase().includes(query.toLowerCase()) ||
@@ -29,18 +31,16 @@ const aiSearch = async (notes: Note[], query: string): Promise<Note[]> => {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Update to use the supported model
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
     // Prepare notes data for the AI
     const notesData = notes.map(note => ({
       id: note.id,
       title: note.title,
-      content: note.content.slice(0, 1000), // Limit content length to avoid token limits
+      content: note.content.slice(0, 1000), // Limit content length
       tags: note.tags ? note.tags.map(tag => tag.name).join(', ') : ''
     }));
     
-    // Create a prompt for the AI
     const prompt = `
     I have the following notes, and I need to find which ones are most relevant to the query: "${query}"
     
@@ -52,8 +52,7 @@ const aiSearch = async (notes: Note[], query: string): Promise<Note[]> => {
     `;
     
     const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const text = result.response.text();
     
     // Parse the JSON array from the response
     const regex = /\[(.*)\]/s;
@@ -68,12 +67,7 @@ const aiSearch = async (notes: Note[], query: string): Promise<Note[]> => {
           .map(id => notes.find(note => note.id === id))
           .filter(Boolean);
         
-        // If AI found nothing, fall back to basic search
-        if (relevantNotes.length === 0) {
-          return basicTextSearch(notes, query);
-        }
-        
-        return relevantNotes;
+        return relevantNotes.length > 0 ? relevantNotes : basicTextSearch(notes, query);
       } catch (error) {
         console.error('Error parsing AI response:', error);
         return basicTextSearch(notes, query);
@@ -94,10 +88,5 @@ export const searchNotes = async (
   useAI: boolean = false
 ): Promise<Note[]> => {
   if (!query.trim()) return [];
-
-  if (useAI) {
-    return await aiSearch(notes, query);
-  } else {
-    return basicTextSearch(notes, query);
-  }
+  return useAI ? await aiSearch(notes, query) : basicTextSearch(notes, query);
 };

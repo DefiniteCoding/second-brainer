@@ -56,8 +56,7 @@ export const callGeminiApi = async (prompt: string, config: Partial<GeminiConfig
           temperature: finalConfig.temperature,
           topK: finalConfig.topK,
           topP: finalConfig.topP,
-          maxOutputTokens: finalConfig.maxOutputTokens,
-          stopSequences: []
+          maxOutputTokens: finalConfig.maxOutputTokens
         }
       })
     });
