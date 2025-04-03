@@ -1,13 +1,11 @@
 
 import { useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
 import { useReactFlow } from '@xyflow/react';
 import { indexedDBService } from '@/services/storage/indexedDB';
 import { useNotes } from '@/contexts/NotesContext';
 import { useTheme } from '@/components/ThemeProvider';
 
 export const useStatePersistence = () => {
-  const location = useLocation();
   const { getViewport, setViewport } = useReactFlow();
   const { notes, getNoteById, activeNoteId, setActiveNoteId } = useNotes();
   const { theme } = useTheme();
@@ -18,7 +16,6 @@ export const useStatePersistence = () => {
       console.log('Saving state to IndexedDB:', {
         notesCount: notes.length,
         activeNoteId,
-        location: location.pathname,
         theme,
       });
 
@@ -31,7 +28,7 @@ export const useStatePersistence = () => {
           y: viewport.y,
           zoom: viewport.zoom,
         },
-        currentRoute: location.pathname,
+        currentRoute: window.location.pathname, // Use window.location instead of useLocation
         uiState: {
           sidebarOpen: true,
           theme,
@@ -41,7 +38,7 @@ export const useStatePersistence = () => {
     } catch (error) {
       console.error('Failed to save state:', error);
     }
-  }, [notes, getViewport, location.pathname, theme, activeNoteId]);
+  }, [notes, getViewport, theme, activeNoteId]);
 
   // Load state from IndexedDB
   const loadState = useCallback(async () => {
@@ -73,7 +70,7 @@ export const useStatePersistence = () => {
         }
 
         // Restore route if different from current
-        if (state.currentRoute !== location.pathname) {
+        if (state.currentRoute !== window.location.pathname) {
           console.log('Restoring route:', state.currentRoute);
           window.history.replaceState(null, '', state.currentRoute);
         }
@@ -86,7 +83,7 @@ export const useStatePersistence = () => {
     } catch (error) {
       console.error('Failed to load state:', error);
     }
-  }, [setViewport, setActiveNoteId, getNoteById, location.pathname]);
+  }, [setViewport, setActiveNoteId, getNoteById]);
 
   // Save state on changes
   useEffect(() => {

@@ -12,7 +12,6 @@ import AppLayout from "./components/AppLayout";
 import KnowledgeGraph from "./pages/KnowledgeGraph";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { useEffect } from "react";
-import { useStatePersistence } from '@/hooks/useStatePersistence';
 import { useNotes } from '@/contexts/NotesContext';
 import { useFileSystem } from '@/hooks/useFileSystem';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -21,8 +20,16 @@ import { Note } from '@/types/note';
 
 const queryClient = new QueryClient();
 
+// Move the inner functional components inside the BrowserRouter in AppWithRouter
+const AppWithRouter = () => {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  );
+};
+
 const AppContent = () => {
-  const { loadState } = useStatePersistence();
   const { notes, setNotes } = useNotes();
   const { loadFiles } = useFileSystem();
   const debouncedNotes = useDebounce(notes, 1000);
@@ -42,19 +49,15 @@ const AppContent = () => {
     document.head.appendChild(link);
   }, []);
 
-  // Load persisted state before fetching files
+  // Load files from File System
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Load state from IndexedDB first
-        await loadState();
-        
-        // Then load files from File System
+        // Load files from File System
         const files = await loadFiles();
-        
-        // Merge IndexedDB notes with files, preferring files for conflicts
-        const mergedNotes = mergeNotes(notes, files);
-        setNotes(mergedNotes);
+        if (files.length > 0) {
+          setNotes(files);
+        }
       } catch (error) {
         console.error('Failed to initialize app:', error);
       }
@@ -79,16 +82,14 @@ const AppContent = () => {
   }, [debouncedNotes]);
 
   return (
-    <BrowserRouter>
-      <AppLayout>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/graph" element={<KnowledgeGraph />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </AppLayout>
-    </BrowserRouter>
+    <AppLayout>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/graph" element={<KnowledgeGraph />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AppLayout>
   );
 };
 
@@ -119,7 +120,7 @@ const App = () => {
               <Toaster />
               <Sonner />
               <FloatingAIButton />
-              <AppContent />
+              <AppWithRouter />
             </NotesProvider>
           </TooltipProvider>
         </ThemeProvider>
