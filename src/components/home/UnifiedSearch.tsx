@@ -83,8 +83,9 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
           className="w-full pl-10 pr-24 h-10 bg-muted/50 border-muted-foreground/20 rounded-lg"
         />
         
+        {/* Only show the animation in the search box when searching and NOT in the dropdown */}
         {isSearching ? (
-          <GradientLoader className="absolute left-3 top-1/2 -translate-y-1/2" variant="apple" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
         ) : (
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
         )}

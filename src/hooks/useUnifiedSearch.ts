@@ -19,7 +19,7 @@ export const useUnifiedSearch = (notes: Note[]) => {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const searchInProgressRef = useRef(false);
   const lastSearchTermRef = useRef('');
-  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSearchAIStateRef = useRef(false);
   const { recentSearches, addSearch } = useRecentSearches();
 
   // Check if API key exists on component mount
@@ -33,19 +33,20 @@ export const useUnifiedSearch = (notes: Note[]) => {
 
   // Handle debounced search
   useEffect(() => {
-    // Clear any existing timers
-    if (searchTimerRef.current) {
-      clearTimeout(searchTimerRef.current);
-    }
-
-    // If search term is empty, clear results
+    // If search term is empty, clear results and exit
     if (!debouncedSearchTerm.trim()) {
       setSearchResults([]);
+      setIsSearching(false);
+      searchInProgressRef.current = false;
       return;
     }
 
-    // Skip if already searching same term
-    if (searchInProgressRef.current && debouncedSearchTerm === lastSearchTermRef.current) {
+    // Skip if already searching the same term with the same AI state
+    if (
+      searchInProgressRef.current && 
+      debouncedSearchTerm === lastSearchTermRef.current && 
+      isAISearch === lastSearchAIStateRef.current
+    ) {
       return;
     }
     
@@ -55,18 +56,23 @@ export const useUnifiedSearch = (notes: Note[]) => {
         return;
       }
 
+      // Mark search as in progress and save terms
       setIsSearching(true);
       searchInProgressRef.current = true;
       lastSearchTermRef.current = debouncedSearchTerm;
+      lastSearchAIStateRef.current = isAISearch;
 
       try {
         const results = await searchNotes(notes, debouncedSearchTerm, {}, isAISearch);
-        setSearchResults(results);
         
-        // Only add to recent searches if it's a user-initiated search (not auto-search from debounce)
-        // and if we got meaningful results
-        if (results.length > 0) {
-          addSearch(debouncedSearchTerm);
+        // Only update results if the search term hasn't changed during the search
+        if (debouncedSearchTerm === lastSearchTermRef.current) {
+          setSearchResults(results);
+          
+          // Only add to recent searches if we got meaningful results
+          if (results.length > 0) {
+            addSearch(debouncedSearchTerm);
+          }
         }
       } catch (error) {
         console.error('Search error:', error);
@@ -76,8 +82,11 @@ export const useUnifiedSearch = (notes: Note[]) => {
           variant: "destructive"
         });
       } finally {
-        setIsSearching(false);
-        searchInProgressRef.current = false;
+        // Only mark search as complete if the search term hasn't changed
+        if (debouncedSearchTerm === lastSearchTermRef.current) {
+          setIsSearching(false);
+          searchInProgressRef.current = false;
+        }
       }
     };
 

@@ -41,21 +41,34 @@ const SearchResultsDropdown: React.FC<SearchResultsDropdownProps> = ({
     return result;
   };
 
+  if (!searchTerm) {
+    return null;
+  }
+
   if (isSearching) {
     return (
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className="mt-2 flex items-center justify-center py-4"
+        className="absolute z-50 left-0 right-0 mt-2 bg-background shadow-lg rounded-lg border border-border overflow-hidden p-4 flex items-center justify-center"
       >
         <GradientLoader variant="apple" size="md" className="mx-auto" />
       </motion.div>
     );
   }
 
-  if (searchResults.length === 0 || !searchTerm) {
-    return null;
+  if (searchResults.length === 0 && searchTerm) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="absolute z-50 left-0 right-0 mt-2 bg-background shadow-lg rounded-lg border border-border p-4 text-center"
+      >
+        <p className="text-muted-foreground">No results found</p>
+      </motion.div>
+    );
   }
 
   return (
