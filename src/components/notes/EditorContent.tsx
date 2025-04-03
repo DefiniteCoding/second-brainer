@@ -3,6 +3,7 @@ import React, { useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import FormattingToolbar from '@/components/notes/FormattingToolbar';
+import { FloatingFormatToolbar } from '@/components/notes/FloatingFormatToolbar';
 import TagSelector from '@/components/TagSelector';
 import { Tag } from '@/types/note';
 
@@ -13,7 +14,7 @@ interface EditorContentProps {
   setContent: (content: string) => void;
   tags: Tag[];
   setTags: (tags: Tag[]) => void;
-  handleFormatText: (formatType: string) => void;
+  handleFormatText: (formatType: string, meta?: any) => void;
 }
 
 const EditorContent: React.FC<EditorContentProps> = ({
@@ -44,13 +45,16 @@ const EditorContent: React.FC<EditorContentProps> = ({
         onTagsChange={setTags} 
       />
       
-      <Textarea
-        ref={textareaRef}
-        placeholder="What's on your mind?"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className="min-h-[300px] resize-none flex-1"
-      />
+      <div className="relative">
+        <Textarea
+          ref={textareaRef}
+          placeholder="What's on your mind?"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="min-h-[300px] resize-none flex-1"
+        />
+        <FloatingFormatToolbar onFormat={handleFormatText} />
+      </div>
     </div>
   );
 };

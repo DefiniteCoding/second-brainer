@@ -5,7 +5,7 @@ import { Bold, Italic, Heading1, Quote, Code, Link as LinkIcon } from 'lucide-re
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface FloatingFormatToolbarProps {
-  onFormat: (type: string) => void;
+  onFormat: (type: string, meta?: any) => void;
 }
 
 export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ onFormat }) => {
@@ -58,20 +58,20 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
     };
   }, []);
 
-  const handleFormatClick = (type: string) => {
+  const handleFormatClick = (type: string, meta?: any) => {
     setActiveButton(type);
-    onFormat(type);
+    onFormat(type, meta);
     setTimeout(() => setActiveButton(null), 200);
   };
 
-  const formatButton = (type: string, icon: React.ReactNode, title: string) => (
+  const formatButton = (type: string, icon: React.ReactNode, title: string, meta?: any) => (
     <Button
       variant="ghost"
       size="icon"
       className={`h-8 w-8 rounded-md transition-all duration-200 hover:scale-110 ${
         activeButton === type ? 'bg-primary text-primary-foreground' : ''
       }`}
-      onClick={() => handleFormatClick(type)}
+      onClick={() => handleFormatClick(type, meta)}
       title={title}
     >
       {icon}
@@ -102,7 +102,7 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
           <div className="w-px h-8 bg-border/50" />
 
           <div className="flex items-center gap-1 px-1 rounded-md bg-muted/50">
-            {formatButton('heading', <Heading1 className="h-4 w-4" />, 'Heading')}
+            {formatButton('h1', <Heading1 className="h-4 w-4" />, 'Heading 1', 1)}
             {formatButton('quote', <Quote className="h-4 w-4" />, 'Quote')}
           </div>
 
@@ -116,4 +116,4 @@ export const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ on
       )}
     </AnimatePresence>
   );
-}; 
+};

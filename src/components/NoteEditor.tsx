@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -37,14 +36,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onBack, isCreating = fals
     resetRecording
   } = useVoiceRecorder();
 
-  // Default title if empty
   useEffect(() => {
     if (isCreating && !title) {
       setTitle(generateDefaultTitle(new Date()));
     }
   }, [isCreating, title]);
 
-  // Handle audio recording result
   useEffect(() => {
     if (audioURL) {
       const audioMarkdown = `🎤 [Voice Recording](${audioURL})`;
@@ -53,7 +50,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onBack, isCreating = fals
     }
   }, [audioURL]);
 
-  // Handle recording errors
   useEffect(() => {
     if (recordingError) {
       toast({
@@ -140,7 +136,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onBack, isCreating = fals
       setIsUploading(true);
       const dataUrl = await uploadFile(file);
       
-      // Add image markdown to content
       const imageMarkdown = `![${file.name}](${dataUrl})`;
       setContent(prev => prev + (prev ? '\n\n' : '') + imageMarkdown);
     } catch (error) {
@@ -172,7 +167,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onBack, isCreating = fals
     }
   };
 
-  const handleFormatText = (formatType: string) => {
+  const handleFormatText = (formatType: string, meta?: any) => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) return;
     
@@ -188,20 +183,36 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onBack, isCreating = fals
       case 'italic':
         formattedText = `_${selectedText}_`;
         break;
+      case 'strikethrough':
+        formattedText = `~~${selectedText}~~`;
+        break;
       case 'h1':
-        formattedText = `# ${selectedText}`;
-        break;
-      case 'h2':
-        formattedText = `## ${selectedText}`;
-        break;
-      case 'h3':
-        formattedText = `### ${selectedText}`;
+      case 'heading':
+        if (meta === 1 || !meta) {
+          formattedText = `# ${selectedText}`;
+        } else if (meta === 2) {
+          formattedText = `## ${selectedText}`;
+        } else if (meta === 3) {
+          formattedText = `### ${selectedText}`;
+        }
         break;
       case 'quote':
         formattedText = `> ${selectedText}`;
         break;
       case 'code':
         formattedText = `\`${selectedText}\``;
+        break;
+      case 'ul':
+        formattedText = selectedText
+          .split('\n')
+          .map(line => `- ${line}`)
+          .join('\n');
+        break;
+      case 'ol':
+        formattedText = selectedText
+          .split('\n')
+          .map((line, i) => `${i + 1}. ${line}`)
+          .join('\n');
         break;
       case 'link':
         const url = window.prompt('Enter URL:', 'https://');
@@ -215,7 +226,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onBack, isCreating = fals
         return;
     }
     
-    // Insert the formatted text into the textarea
     document.execCommand('insertText', false, formattedText);
   };
 
