@@ -18,7 +18,8 @@ export const useFileSystem = () => {
       for await (const entry of dirHandle.values()) {
         if (entry.kind === 'file' && entry.name.endsWith('.md')) {
           console.log('Reading file:', entry.name);
-          const file = await entry.getFile();
+          const fileHandle = entry as FileSystemFileHandle;
+          const file = await fileHandle.getFile();
           const content = await file.text();
           
           // Parse frontmatter if present

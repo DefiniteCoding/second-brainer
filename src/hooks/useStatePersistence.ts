@@ -9,7 +9,7 @@ import { useTheme } from '@/components/ThemeProvider';
 export const useStatePersistence = () => {
   const location = useLocation();
   const { getViewport, setViewport } = useReactFlow();
-  const { notes, getNoteById, setActiveNoteId } = useNotes();
+  const { notes, getNoteById, activeNoteId, setActiveNoteId } = useNotes();
   const { theme } = useTheme();
 
   // Save state to IndexedDB
@@ -17,7 +17,7 @@ export const useStatePersistence = () => {
     try {
       console.log('Saving state to IndexedDB:', {
         notesCount: notes.length,
-        activeNoteId: setActiveNoteId ? notes.find(n => n.id === setActiveNoteId)?.id : null,
+        activeNoteId,
         location: location.pathname,
         theme,
       });
@@ -41,7 +41,7 @@ export const useStatePersistence = () => {
     } catch (error) {
       console.error('Failed to save state:', error);
     }
-  }, [notes, getViewport, location.pathname, theme, setActiveNoteId]);
+  }, [notes, getViewport, location.pathname, theme, activeNoteId]);
 
   // Load state from IndexedDB
   const loadState = useCallback(async () => {

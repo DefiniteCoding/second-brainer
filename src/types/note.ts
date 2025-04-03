@@ -56,4 +56,14 @@ export interface AppState {
   notes: Note[];
   activeNoteId: string | null;
   route?: string;
+  graphPosition?: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
+  currentRoute?: string;
+  uiState?: {
+    sidebarOpen: boolean;
+    theme: string;
+  };
 }

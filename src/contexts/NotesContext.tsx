@@ -1,6 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { saveNotesToLocalStorage, loadNotesFromLocalStorage, metadataDB } from '@/utils/markdownStorage';
+import { saveNotesToLocalStorage, loadNotesFromLocalStorage, metadataDB, downloadNotesAsMarkdown } from '@/utils/markdownStorage';
 import { format } from 'date-fns';
 import { indexedDBService } from '@/services/storage/indexedDB';
 import { autoSaveService } from '@/services/storage/autoSave';
@@ -622,3 +623,6 @@ export const useNotes = () => {
   }
   return context;
 };
+
+// Re-export the types from types/note.ts for convenience
+export type { Note, Tag };
