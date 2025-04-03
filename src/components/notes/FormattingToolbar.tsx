@@ -13,9 +13,10 @@ interface FormattingToolbarProps {
   onLinkClick?: () => void;
   onBulletListClick?: () => void;
   onNumberedListClick?: () => void;
+  onFormat?: (type: string) => void;
 }
 
-const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
+export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   onBoldClick,
   onItalicClick,
   onHighlightClick,
@@ -24,15 +25,24 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   onCodeClick,
   onLinkClick,
   onBulletListClick,
-  onNumberedListClick
+  onNumberedListClick,
+  onFormat
 }) => {
+  // If onFormat is provided, use it instead of individual handlers
+  const handleClick = (type: string, handler?: () => void) => {
+    if (onFormat) {
+      return () => onFormat(type);
+    }
+    return handler;
+  };
+
   return (
     <div className="flex flex-wrap gap-1 p-1 bg-background rounded-md shadow-sm border">
       <Button 
         variant="ghost" 
         size="icon" 
         className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-        onClick={onBoldClick}
+        onClick={handleClick('bold', onBoldClick)}
         title="Bold"
       >
         <Bold className="h-4 w-4" />
@@ -42,7 +52,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         variant="ghost" 
         size="icon" 
         className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-        onClick={onItalicClick}
+        onClick={handleClick('italic', onItalicClick)}
         title="Italic"
       >
         <Italic className="h-4 w-4" />
@@ -53,7 +63,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           variant="ghost" 
           size="icon" 
           className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-          onClick={onHighlightClick}
+          onClick={handleClick('highlight', onHighlightClick)}
           title="Highlight"
         >
           <Highlighter className="h-4 w-4" />
@@ -67,7 +77,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           variant="ghost" 
           size="icon" 
           className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-          onClick={onHeadingClick}
+          onClick={handleClick('h1', onHeadingClick)}
           title="Heading"
         >
           <Heading className="h-4 w-4" />
@@ -79,7 +89,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           variant="ghost" 
           size="icon" 
           className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-          onClick={onQuoteClick}
+          onClick={handleClick('quote', onQuoteClick)}
           title="Quote"
         >
           <Quote className="h-4 w-4" />
@@ -91,7 +101,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           variant="ghost" 
           size="icon" 
           className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-          onClick={onBulletListClick}
+          onClick={handleClick('ul', onBulletListClick)}
           title="Bullet List"
         >
           <List className="h-4 w-4" />
@@ -103,7 +113,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           variant="ghost" 
           size="icon" 
           className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-          onClick={onNumberedListClick}
+          onClick={handleClick('ol', onNumberedListClick)}
           title="Numbered List"
         >
           <ListOrdered className="h-4 w-4" />
@@ -117,7 +127,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           variant="ghost" 
           size="icon" 
           className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-          onClick={onCodeClick}
+          onClick={handleClick('code', onCodeClick)}
           title="Code"
         >
           <Code className="h-4 w-4" />
@@ -129,7 +139,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           variant="ghost" 
           size="icon" 
           className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-          onClick={onLinkClick}
+          onClick={handleClick('link', onLinkClick)}
           title="Link"
         >
           <Link className="h-4 w-4" />
@@ -139,4 +149,5 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   );
 };
 
+// Also export as default for backward compatibility
 export default FormattingToolbar;
