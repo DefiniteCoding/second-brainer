@@ -2,8 +2,8 @@
 import React from 'react';
 import { Note, useNotes } from '@/contexts/NotesContext';
 import HeaderSection from './HeaderSection';
-import SearchInput from './SearchInput';
 import HeaderActions from './HeaderActions';
+import { UnifiedSearch } from './UnifiedSearch';
 
 interface SearchBarProps {
   onNoteSelected: (note: Note) => void;
@@ -23,10 +23,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onNoteSelected, onAddNote, onSear
         
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <div className="w-full flex-1 md:w-auto md:flex-none">
-            <SearchInput 
-              notes={notes} 
-              onSearchResults={onSearchResults} 
-            />
+            <UnifiedSearch onSearchResults={onSearchResults} />
           </div>
           
           <HeaderActions onAddNote={onAddNote} />
