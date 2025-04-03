@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,10 +16,12 @@ import { useStatePersistence } from '@/hooks/useStatePersistence';
 import { useNotes } from '@/contexts/NotesContext';
 import { useFileSystem } from '@/hooks/useFileSystem';
 import { useDebounce } from '@/hooks/useDebounce';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { Note } from '@/types/note';
 
 const queryClient = new QueryClient();
 
-const App = () => {
+const AppContent = () => {
   const { loadState } = useStatePersistence();
   const { notes, setNotes } = useNotes();
   const { loadFiles } = useFileSystem();
@@ -76,27 +79,16 @@ const App = () => {
   }, [debouncedNotes]);
 
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <NotesProvider>
-            <Toaster />
-            <Sonner />
-            <FloatingAIButton />
-            <BrowserRouter>
-              <AppLayout>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/graph" element={<KnowledgeGraph />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </AppLayout>
-            </BrowserRouter>
-          </NotesProvider>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <BrowserRouter>
+      <AppLayout>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/graph" element={<KnowledgeGraph />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AppLayout>
+    </BrowserRouter>
   );
 };
 
@@ -115,6 +107,25 @@ const mergeNotes = (indexedDBNotes: Note[], fileSystemNotes: Note[]): Note[] => 
   });
   
   return Array.from(merged.values());
+};
+
+const App = () => {
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <TooltipProvider>
+            <NotesProvider>
+              <Toaster />
+              <Sonner />
+              <FloatingAIButton />
+              <AppContent />
+            </NotesProvider>
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
 };
 
 export default App;

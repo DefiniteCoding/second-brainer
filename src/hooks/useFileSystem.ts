@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { Note } from '@/types/note';
 
@@ -22,7 +23,7 @@ export const useFileSystem = () => {
           
           // Parse frontmatter if present
           const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-          let metadata = {};
+          let metadata: any = {};
           let noteContent = content;
           
           if (frontmatterMatch) {
@@ -44,6 +45,7 @@ export const useFileSystem = () => {
             mentions: metadata.mentions || [],
             createdAt: new Date(metadata.createdAt || file.lastModified),
             updatedAt: new Date(metadata.updatedAt || file.lastModified),
+            contentType: 'text',
           });
         }
       }
@@ -70,6 +72,20 @@ export const useFileSystem = () => {
       // Create or get the file handle
       const fileHandle = await dirHandle.getFileHandle(`${note.id}.md`, { create: true });
       
+      // Create backup before saving
+      try {
+        const backupFileHandle = await dirHandle.getFileHandle(`${note.id}.md.backup`, { create: true });
+        const originalFile = await fileHandle.getFile();
+        const originalContent = await originalFile.text();
+        
+        const backupWritable = await backupFileHandle.createWritable();
+        await backupWritable.write(originalContent);
+        await backupWritable.close();
+        console.log('Backup created successfully');
+      } catch (error) {
+        console.warn('Failed to create backup:', error);
+      }
+      
       // Prepare the content with frontmatter
       const frontmatter = {
         title: note.title,
@@ -86,6 +102,7 @@ export const useFileSystem = () => {
       const file = new File([content], `${note.id}.md`, { type: 'text/markdown' });
       const writable = await fileHandle.createWritable();
       await writable.write(file);
+      await writable.close();
       
       // Update the last modified time
       await fileHandle.getFile();
@@ -100,4 +117,4 @@ export const useFileSystem = () => {
     loadFiles,
     saveFile,
   };
-}; 
+};

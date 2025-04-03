@@ -1,3 +1,4 @@
+
 import { useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useReactFlow } from '@xyflow/react';
@@ -8,7 +9,7 @@ import { useTheme } from '@/components/ThemeProvider';
 export const useStatePersistence = () => {
   const location = useLocation();
   const { getViewport, setViewport } = useReactFlow();
-  const { notes, activeNote, setActiveNote } = useNotes();
+  const { notes, getNoteById, setActiveNoteId } = useNotes();
   const { theme } = useTheme();
 
   // Save state to IndexedDB
@@ -16,7 +17,7 @@ export const useStatePersistence = () => {
     try {
       console.log('Saving state to IndexedDB:', {
         notesCount: notes.length,
-        activeNoteId: activeNote?.id,
+        activeNoteId: setActiveNoteId ? notes.find(n => n.id === setActiveNoteId)?.id : null,
         location: location.pathname,
         theme,
       });
@@ -24,7 +25,7 @@ export const useStatePersistence = () => {
       const viewport = getViewport();
       await indexedDBService.saveState({
         notes,
-        activeNoteId: activeNote?.id || null,
+        activeNoteId: notes.length > 0 ? notes[0].id : null,
         graphPosition: {
           x: viewport.x,
           y: viewport.y,
@@ -40,7 +41,7 @@ export const useStatePersistence = () => {
     } catch (error) {
       console.error('Failed to save state:', error);
     }
-  }, [notes, activeNote, getViewport, location.pathname, theme]);
+  }, [notes, getViewport, location.pathname, theme, setActiveNoteId]);
 
   // Load state from IndexedDB
   const loadState = useCallback(async () => {
@@ -64,9 +65,9 @@ export const useStatePersistence = () => {
 
         // Restore active note
         if (state.activeNoteId) {
-          const note = state.notes.find(n => n.id === state.activeNoteId);
+          const note = getNoteById(state.activeNoteId);
           if (note) {
-            setActiveNote(note);
+            setActiveNoteId(note.id);
             console.log('Restored active note:', note.id);
           }
         }
@@ -85,7 +86,7 @@ export const useStatePersistence = () => {
     } catch (error) {
       console.error('Failed to load state:', error);
     }
-  }, [setViewport, setActiveNote, location.pathname]);
+  }, [setViewport, setActiveNoteId, getNoteById, location.pathname]);
 
   // Save state on changes
   useEffect(() => {
@@ -101,4 +102,4 @@ export const useStatePersistence = () => {
     saveState,
     loadState,
   };
-}; 
+};

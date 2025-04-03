@@ -1,31 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { saveNotesToLocalStorage, loadNotesFromLocalStorage, downloadNotesAsMarkdown, metadataDB } from '@/utils/markdownStorage';
+import { saveNotesToLocalStorage, loadNotesFromLocalStorage, metadataDB } from '@/utils/markdownStorage';
 import { format } from 'date-fns';
 import { indexedDBService } from '@/services/storage/indexedDB';
 import { autoSaveService } from '@/services/storage/autoSave';
-
-export interface Tag {
-  id: string;
-  name: string;
-  color: string;
-}
-
-export interface Note {
-  id: string;
-  title?: string;
-  content: string;
-  contentType: 'text' | 'image' | 'link' | 'audio' | 'video';
-  createdAt: Date;
-  updatedAt: Date;
-  tags: Tag[];
-  source?: string;
-  location?: { latitude: number; longitude: number };
-  mediaUrl?: string;
-  connections?: string[]; // IDs of explicitly connected notes
-  mentions?: string[]; // IDs of mentioned notes
-  concepts?: string[]; // AI-generated concepts for the note
-}
+import { Note, Tag, AppState } from '@/types/note';
 
 const generateDefaultTitle = (date: Date = new Date()): string => {
   return `Note ${format(date, "MMM d, yyyy 'at' h:mm a")}`;
@@ -64,6 +43,7 @@ interface NotesContextType {
   markClean: (noteId: string) => void;
   activeNoteId: string | null;
   setActiveNoteId: (id: string | null) => void;
+  setNotes: (notes: Note[]) => void;
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
@@ -212,8 +192,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (selectedNote) {
       indexedDBService.saveUIState({
-        activeNoteId: selectedNote.id,
-        route: window.location.pathname
+        activeNoteId: selectedNote.id
       });
     }
   }, [selectedNote]);
@@ -588,6 +567,21 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
+  const setNotes = (newNotes: Note[]) => {
+    const noteState: { [id: string]: { note: Note, dirty: boolean } } = {};
+    newNotes.forEach(note => {
+      noteState[note.id] = {
+        note,
+        dirty: false
+      };
+    });
+
+    setNoteState(prev => ({
+      ...prev,
+      notes: noteState
+    }));
+  };
+
   return (
     <NotesContext.Provider
       value={{
@@ -612,7 +606,8 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isDirty,
         markClean,
         activeNoteId: noteState.activeNoteId,
-        setActiveNoteId: (id) => setNoteState(prev => ({ ...prev, activeNoteId: id }))
+        setActiveNoteId: (id) => setNoteState(prev => ({ ...prev, activeNoteId: id })),
+        setNotes
       }}
     >
       {children}

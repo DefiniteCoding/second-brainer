@@ -1,5 +1,6 @@
+
 import { v4 as uuidv4 } from 'uuid';
-import { Note, Tag } from '@/contexts/NotesContext';
+import { Note, Tag } from '@/types/note';
 
 // Interface for Markdown file info
 export interface MarkdownFile {
