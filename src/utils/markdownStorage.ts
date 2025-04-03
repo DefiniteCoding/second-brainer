@@ -99,9 +99,12 @@ export const saveNotesToLocalStorage = async (notes: Note[], tags: Tag[]): Promi
     // Also store as Markdown for portability
     const markdownFiles = exportNotesToMarkdown(notes, tags);
     localStorage.setItem('second-brain-markdown', JSON.stringify(markdownFiles));
+    
+    // Store last save timestamp
+    localStorage.setItem('second-brain-last-save', new Date().toISOString());
 
     // Clear backup after successful save
-    console.log('Notes saved successfully');
+    console.log('Notes saved successfully at', new Date().toLocaleTimeString());
   } catch (error) {
     console.error('Failed to save notes:', error);
     // Attempt to restore from backup

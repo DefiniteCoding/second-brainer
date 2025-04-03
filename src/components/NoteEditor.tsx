@@ -253,6 +253,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onBack, isCreating = fals
         tags={tags}
         setTags={setTags}
         handleFormatText={handleFormatText}
+        noteId={note?.id}
+        isCreating={isCreating}
       />
       
       <EditorToolbar
