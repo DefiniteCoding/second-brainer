@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Tags, Sparkles, X, FileText, Image, Link2, Mic, Video } from 'lucide-react';
@@ -39,16 +39,27 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
     contentTypes: [],
     tags: []
   });
+  
+  // Track if a search is already in progress to prevent duplicate requests
+  const searchInProgressRef = useRef(false);
+  // Track the latest search term for debouncing
+  const lastSearchTermRef = useRef('');
+  // Debounce timer reference
+  const debounceTimerRef = useRef<number | null>(null);
 
   const { toast } = useToast();
   const { notes } = useNotes();
 
   const handleSearch = useCallback(async () => {
-    if (!searchTerm.trim()) {
-      onSearchResults(null, false);
+    // Skip if already searching or if the search term is empty
+    if (searchInProgressRef.current || !searchTerm.trim()) {
+      if (!searchTerm.trim()) {
+        onSearchResults(null, false);
+      }
       return;
     }
 
+    searchInProgressRef.current = true;
     setIsSearching(true);
     onSearchResults(null, true);
 
@@ -61,6 +72,9 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
             description: "Please set your Gemini API key in AI Settings first.",
             variant: "destructive"
           });
+          setIsSearching(false);
+          onSearchResults(null, false);
+          searchInProgressRef.current = false;
           return;
         }
       }
@@ -82,27 +96,52 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
       onSearchResults(null, false);
     } finally {
       setIsSearching(false);
+      searchInProgressRef.current = false;
+      // Update the last search term after completion
+      lastSearchTermRef.current = searchTerm;
     }
   }, [searchTerm, isAISearch, filters, notes, onSearchResults, toast]);
 
-  // Debounced search effect
+  // Effect for debounced search
   useEffect(() => {
-    if (!searchTerm.trim()) {
-      onSearchResults(null, false);
+    // Clear any existing timer
+    if (debounceTimerRef.current) {
+      window.clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Skip if search term is empty or unchanged
+    if (!searchTerm.trim() || searchTerm === lastSearchTermRef.current) {
+      if (!searchTerm.trim()) {
+        onSearchResults(null, false);
+      }
       return;
     }
 
-    const timer = setTimeout(() => {
+    // Set a new timer for debounced search
+    debounceTimerRef.current = window.setTimeout(() => {
       handleSearch();
     }, 600);
 
-    return () => clearTimeout(timer);
-  }, [searchTerm, handleSearch]);
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (debounceTimerRef.current) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [searchTerm, handleSearch, onSearchResults]);
 
   const handleFilterChange = (newFilters: SearchFilters) => {
     setFilters(newFilters);
     if (searchTerm.trim()) {
-      handleSearch();
+      // Clear any existing timer
+      if (debounceTimerRef.current) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+      
+      // Set a new timer for debounced search after filter change
+      debounceTimerRef.current = window.setTimeout(() => {
+        handleSearch();
+      }, 300);
     }
   };
 
@@ -112,7 +151,15 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
       tags: []
     });
     if (searchTerm.trim()) {
-      handleSearch();
+      // Clear any existing timer
+      if (debounceTimerRef.current) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+      
+      // Set a new timer for debounced search after filter reset
+      debounceTimerRef.current = window.setTimeout(() => {
+        handleSearch();
+      }, 300);
     }
   };
 
@@ -133,8 +180,16 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
             size="icon"
             onClick={() => {
               setIsAISearch(!isAISearch);
-              if (searchTerm.trim()) {
-                handleSearch();
+              if (searchTerm.trim() && !searchInProgressRef.current) {
+                // Trigger a new search with the updated AI search setting
+                // Clear any existing timer
+                if (debounceTimerRef.current) {
+                  window.clearTimeout(debounceTimerRef.current);
+                }
+                
+                debounceTimerRef.current = window.setTimeout(() => {
+                  handleSearch();
+                }, 300);
               }
             }}
             className={`h-7 w-7 rounded-full transition-colors ${
@@ -224,4 +279,4 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, onNoteSelected, 
   );
 };
 
-export default UnifiedSearch; 
+export default UnifiedSearch;

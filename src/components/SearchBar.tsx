@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -22,6 +22,11 @@ const SearchBar: React.FC = () => {
   const { notes } = useNotes();
   const { toast } = useToast();
   const debouncedQuery = useDebounce(query, 300);
+  
+  // Track if a search is already in progress to prevent duplicate requests
+  const searchInProgressRef = useRef(false);
+  // Last search query performed
+  const lastSearchQueryRef = useRef('');
 
   // Check if API key exists on component mount
   useEffect(() => {
@@ -37,13 +42,22 @@ const SearchBar: React.FC = () => {
 
   // Handle debounced search
   useEffect(() => {
+    // Skip if already searching, query is empty, or the query hasn't changed
+    if (searchInProgressRef.current || !debouncedQuery.trim() || !hasApiKey || debouncedQuery === lastSearchQueryRef.current) {
+      if (!debouncedQuery.trim()) {
+        setSearchResults([]);
+      }
+      return;
+    }
+    
     const performSearch = async () => {
-      if (!debouncedQuery.trim() || !hasApiKey) return;
-      
+      searchInProgressRef.current = true;
       setIsSearching(true);
       try {
         const results = await searchWithGemini(debouncedQuery, notes);
         setSearchResults(results);
+        // Update the last search query
+        lastSearchQueryRef.current = debouncedQuery;
       } catch (error) {
         console.error('Search error:', error);
         toast({
@@ -54,6 +68,7 @@ const SearchBar: React.FC = () => {
         setSearchResults([]);
       } finally {
         setIsSearching(false);
+        searchInProgressRef.current = false;
       }
     };
 
