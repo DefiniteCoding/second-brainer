@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -28,4 +29,6 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
+  // Vite automatically loads environment variables from .env files
+  // so no additional configuration is required
 }));

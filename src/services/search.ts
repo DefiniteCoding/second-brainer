@@ -1,5 +1,6 @@
-import { Note } from '@/contexts/NotesContext';
-import * as aiService from './ai';
+
+import { Note } from '@/types/note';
+import { searchWithGemini } from './gemini';
 
 interface SearchFilters {
   date?: Date;
@@ -14,18 +15,20 @@ export const searchNotes = async (
   filters: SearchFilters,
   isAISearch: boolean
 ): Promise<Note[]> => {
+  let results: Note[] = [];
+  
   if (isAISearch) {
-    const results = await aiService.naturalLanguageSearch(searchTerm, notes);
-    return applyFilters(results, filters);
+    // Use Gemini for AI-powered search
+    results = await searchWithGemini(searchTerm, notes);
+  } else {
+    // Basic search implementation
+    const searchTermLower = searchTerm.toLowerCase();
+    results = notes.filter(note => {
+      const titleMatch = note.title.toLowerCase().includes(searchTermLower);
+      const contentMatch = note.content.toLowerCase().includes(searchTermLower);
+      return titleMatch || contentMatch;
+    });
   }
-
-  // Basic search implementation
-  const searchTermLower = searchTerm.toLowerCase();
-  let results = notes.filter(note => {
-    const titleMatch = note.title.toLowerCase().includes(searchTermLower);
-    const contentMatch = note.content.toLowerCase().includes(searchTermLower);
-    return titleMatch || contentMatch;
-  });
 
   return applyFilters(results, filters);
 };
@@ -101,4 +104,4 @@ const determineNoteTypes = (note: Note): string[] => {
   }
 
   return types;
-}; 
+};
