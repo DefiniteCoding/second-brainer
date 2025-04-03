@@ -13,6 +13,7 @@ import { Tag, useNotes } from '@/contexts/NotesContext';
 import { Badge } from '@/components/ui/badge';
 import { Plus, X, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface TagManagerProps {
   open?: boolean;
@@ -24,12 +25,31 @@ const TagManager: React.FC<TagManagerProps> = ({ open = false, onOpenChange }) =
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#6366F1');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+  // Close color picker when dialog closes
+  const handleOpenChange = (newOpenState: boolean) => {
+    if (!newOpenState) {
+      setShowColorPicker(false);
+    }
+    onOpenChange(newOpenState);
+  };
+
+  // Force close the popover when dialog closes
+  React.useEffect(() => {
+    if (!open) {
+      setShowColorPicker(false);
+      setIsPopoverOpen(false);
+    }
+  }, [open]);
 
   const handleAddTag = () => {
     if (newTagName.trim()) {
       addTag({ name: newTagName.trim(), color: newTagColor });
       setNewTagName('');
       setNewTagColor('#6366F1');
+      setShowColorPicker(false);
+      setIsPopoverOpen(false);
     }
   };
 
@@ -52,8 +72,13 @@ const TagManager: React.FC<TagManagerProps> = ({ open = false, onOpenChange }) =
     '#EC4899', // pink
   ];
 
+  // If dialog is not open, don't render its content to avoid ghost overlays
+  if (!open) {
+    return null;
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Manage Tags</DialogTitle>
@@ -61,7 +86,13 @@ const TagManager: React.FC<TagManagerProps> = ({ open = false, onOpenChange }) =
         
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
-            <Popover open={showColorPicker} onOpenChange={setShowColorPicker}>
+            <Popover 
+              open={isPopoverOpen} 
+              onOpenChange={(state) => {
+                setIsPopoverOpen(state);
+                setShowColorPicker(state);
+              }}
+            >
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -78,7 +109,7 @@ const TagManager: React.FC<TagManagerProps> = ({ open = false, onOpenChange }) =
                       style={{ backgroundColor: color }}
                       onClick={() => {
                         setNewTagColor(color);
-                        setShowColorPicker(false);
+                        setIsPopoverOpen(false);
                       }}
                     >
                       {newTagColor === color && (
@@ -138,7 +169,7 @@ const TagManager: React.FC<TagManagerProps> = ({ open = false, onOpenChange }) =
         </div>
         
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Done</Button>
+          <Button onClick={() => handleOpenChange(false)}>Done</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
