@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,10 +16,10 @@ import { useFileSystem } from '@/hooks/useFileSystem';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Note } from '@/types/note';
+import { mergeNotes } from './contexts/notes/notesUtils';
 
 const queryClient = new QueryClient();
 
-// Move the inner functional components inside the BrowserRouter in AppWithRouter
 const AppWithRouter = () => {
   return (
     <BrowserRouter>
@@ -34,26 +33,18 @@ const AppContent = () => {
   const { loadFiles } = useFileSystem();
   const debouncedNotes = useDebounce(notes, 1000);
 
-  // Set the title and favicon when the app loads
   useEffect(() => {
-    // Set the document title
     document.title = "SecondBrainer";
-    
-    // Create a link element for the favicon
     const link = document.querySelector("link[rel*='icon']") as HTMLLinkElement || document.createElement('link');
     link.type = 'image/x-icon';
     link.rel = 'shortcut icon';
     link.href = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%238b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>';
-    
-    // Add it to the document head
     document.head.appendChild(link);
   }, []);
 
-  // Load files from File System
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Load files from File System
         const files = await loadFiles();
         if (files.length > 0) {
           setNotes(files);
@@ -66,7 +57,6 @@ const AppContent = () => {
     initializeApp();
   }, []);
 
-  // Sync with File System in the background
   useEffect(() => {
     const syncWithFileSystem = async () => {
       try {
@@ -86,28 +76,10 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/graph" element={<KnowledgeGraph />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
   );
-};
-
-// Helper function to merge notes from different sources
-const mergeNotes = (indexedDBNotes: Note[], fileSystemNotes: Note[]): Note[] => {
-  const merged = new Map<string, Note>();
-  
-  // Add IndexedDB notes first
-  indexedDBNotes.forEach(note => {
-    merged.set(note.id, note);
-  });
-  
-  // Override with File System notes
-  fileSystemNotes.forEach(note => {
-    merged.set(note.id, note);
-  });
-  
-  return Array.from(merged.values());
 };
 
 const App = () => {

@@ -2,6 +2,18 @@
 import { Note } from '@/types/note';
 import React from 'react';
 
+export type NoteEntry = { note: Note; dirty: boolean };
+export type NotesState = { [id: string]: NoteEntry };
+
+// Helper function to convert from NotesState to Record<string, Note>
+export const extractNotesRecord = (notesState: NotesState): Record<string, Note> => {
+  const record: Record<string, Note> = {};
+  Object.keys(notesState).forEach(id => {
+    record[id] = notesState[id].note;
+  });
+  return record;
+};
+
 // Helper function to merge notes from different sources
 export const mergeNotes = (indexedDBNotes: Note[], fileSystemNotes: Note[]): Note[] => {
   const merged = new Map<string, Note>();
@@ -19,7 +31,7 @@ export const mergeNotes = (indexedDBNotes: Note[], fileSystemNotes: Note[]): Not
   return Array.from(merged.values());
 };
 
-export const parseNoteContent = (content: string, notes: Record<string, Note>): { 
+export const parseNoteContent = (content: string, notes: NotesState): { 
   parsedContent: React.ReactNode, 
   mentionedNoteIds: string[] 
 } => {
@@ -42,10 +54,10 @@ export const parseNoteContent = (content: string, notes: Record<string, Note>): 
     }
     
     const mentionedNote = Object.values(notes)
-      .find(n => n.title?.toLowerCase() === mentionTitle.toLowerCase());
+      .find(n => n.note.title?.toLowerCase() === mentionTitle.toLowerCase());
     
     if (mentionedNote) {
-      mentionedNoteIds.push(mentionedNote.id);
+      mentionedNoteIds.push(mentionedNote.note.id);
       segments.push(
         React.createElement("span", {
           key: `mention-${segments.length}`,
@@ -76,10 +88,11 @@ export const parseNoteContent = (content: string, notes: Record<string, Note>): 
   };
 };
 
-export const getSuggestedConnections = (noteId: string, notes: Record<string, Note>): Note[] => {
-  const currentNote = notes[noteId];
-  if (!currentNote) return [];
-
+export const getSuggestedConnections = (noteId: string, notes: NotesState): Note[] => {
+  const noteEntry = notes[noteId];
+  if (!noteEntry) return [];
+  
+  const currentNote = noteEntry.note;
   const noteText = (currentNote.title + ' ' + currentNote.content).toLowerCase();
   
   const commonWords = new Set([
@@ -121,8 +134,9 @@ export const getSuggestedConnections = (noteId: string, notes: Record<string, No
   const significantTerms = [...keyTerms, ...keyPhrases];
   
   return Object.values(notes)
-    .filter(note => note.id !== noteId)
-    .map(note => {
+    .filter(entry => entry.note.id !== noteId)
+    .map(entry => {
+      const note = entry.note;
       const otherNoteText = (note.title + ' ' + note.content).toLowerCase();
       
       const termMatches = significantTerms.filter(term => 

@@ -5,7 +5,7 @@ import { Note, Tag } from '@/types/note';
 import { NoteState } from './types';
 import { DEFAULT_TAGS, TAGS_STORAGE_KEY, RECENT_VIEWS_KEY } from './constants';
 import { saveNotesToLocalStorage, loadNotesFromLocalStorage, metadataDB, downloadNotesAsMarkdown } from '@/utils/markdownStorage';
-import { parseNoteContent, getSuggestedConnections } from './notesUtils';
+import { parseNoteContent, getSuggestedConnections, NotesState } from './notesUtils';
 import { generateDefaultTitle } from './constants';
 import { indexedDBService } from '@/services/storage/indexedDB';
 import { autoSaveService } from '@/services/storage/autoSave';
