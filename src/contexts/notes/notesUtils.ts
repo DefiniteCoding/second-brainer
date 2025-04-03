@@ -47,9 +47,10 @@ export const parseNoteContent = (content: string, notes: Record<string, Note>): 
     if (mentionedNote) {
       mentionedNoteIds.push(mentionedNote.id);
       segments.push(
-        <span key={`mention-${segments.length}`} className="text-primary font-medium cursor-pointer hover:underline">
-          {mentionTitle}
-        </span>
+        React.createElement("span", {
+          key: `mention-${segments.length}`,
+          className: "text-primary font-medium cursor-pointer hover:underline"
+        }, mentionTitle)
       );
     } else {
       segments.push(`[[${mentionTitle}]]`);
@@ -70,13 +71,13 @@ export const parseNoteContent = (content: string, notes: Record<string, Note>): 
   }
   
   return {
-    parsedContent: segments.join(''),
+    parsedContent: segments,
     mentionedNoteIds
   };
 };
 
 export const getSuggestedConnections = (noteId: string, notes: Record<string, Note>): Note[] => {
-  const currentNote = notes[noteId]?.note;
+  const currentNote = notes[noteId];
   if (!currentNote) return [];
 
   const noteText = (currentNote.title + ' ' + currentNote.content).toLowerCase();
@@ -120,7 +121,6 @@ export const getSuggestedConnections = (noteId: string, notes: Record<string, No
   const significantTerms = [...keyTerms, ...keyPhrases];
   
   return Object.values(notes)
-    .map(entry => entry.note)
     .filter(note => note.id !== noteId)
     .map(note => {
       const otherNoteText = (note.title + ' ' + note.content).toLowerCase();
