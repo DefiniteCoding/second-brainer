@@ -14,7 +14,7 @@ export const GeminiService = {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
       // Update to use the supported model
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
       await model.generateContent("test");
       return true;
     } catch (error) {

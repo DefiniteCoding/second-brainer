@@ -1,4 +1,3 @@
-
 import { Note } from '@/contexts/NotesContext';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GeminiService } from './gemini';
@@ -30,7 +29,7 @@ const aiSearch = async (notes: Note[], query: string): Promise<Note[]> => {
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     // Update to use the supported model
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
     // Prepare notes data for the AI
     const notesData = notes.map(note => ({

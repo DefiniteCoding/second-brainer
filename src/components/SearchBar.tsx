@@ -1,121 +1,51 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Search, Sparkles, X } from 'lucide-react';
-import { useDebounce } from '@/hooks/useDebounce';
-import { searchWithGemini, checkGeminiApiKey, saveGeminiApiKey } from '@/services/gemini';
 import { useNotes } from '@/contexts/NotesContext';
-import { Note } from '@/types/note';
-import { useToast } from '@/components/ui/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { motion, AnimatePresence } from 'framer-motion';
+import ApiKeyDialog from '@/components/search/ApiKeyDialog';
+import SearchResults from '@/components/search/SearchResults';
+import { useSearch } from '@/hooks/useSearch';
+import { AnimatePresence } from 'framer-motion';
 
 const SearchBar: React.FC = () => {
-  const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Note[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  const { notes, getNoteById } = useNotes();
-  const { toast } = useToast();
-  const debouncedQuery = useDebounce(query, 300);
+  const { notes } = useNotes();
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   
-  // Track if a search is already in progress to prevent duplicate requests
-  const searchInProgressRef = useRef(false);
-  // Last search query performed
-  const lastSearchQueryRef = useRef('');
+  const {
+    query,
+    setQuery,
+    searchResults,
+    isSearching,
+    isAIEnabled,
+    hasApiKey,
+    isApiKeyDialogOpen,
+    setIsApiKeyDialogOpen,
+    clearSearch,
+    toggleAISearch,
+    handleApiKeyValidated
+  } = useSearch(notes);
 
-  // Check if API key exists on component mount
+  // Close search results when clicking outside
   useEffect(() => {
-    const checkApiKey = async () => {
-      const keyExists = await checkGeminiApiKey();
-      setHasApiKey(keyExists);
-      if (!keyExists) {
-        setIsApiKeyDialogOpen(true);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current && 
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        clearSearch();
       }
     };
-    checkApiKey();
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
-  // Handle debounced search
-  useEffect(() => {
-    // Skip if already searching, query is empty, or the query hasn't changed
-    if (searchInProgressRef.current || !debouncedQuery.trim() || !hasApiKey || debouncedQuery === lastSearchQueryRef.current) {
-      if (!debouncedQuery.trim()) {
-        setSearchResults([]);
-      }
-      return;
-    }
-    
-    const performSearch = async () => {
-      searchInProgressRef.current = true;
-      setIsSearching(true);
-      try {
-        const results = await searchWithGemini(debouncedQuery, notes);
-        setSearchResults(results);
-        // Update the last search query
-        lastSearchQueryRef.current = debouncedQuery;
-      } catch (error) {
-        console.error('Search error:', error);
-        toast({
-          title: "Search failed",
-          description: "There was an error processing your search. Please try again.",
-          variant: "destructive"
-        });
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
-        searchInProgressRef.current = false;
-      }
-    };
-
-    performSearch();
-  }, [debouncedQuery, notes, hasApiKey, toast]);
-
-  const handleSaveApiKey = async () => {
-    if (!apiKey.trim()) {
-      toast({
-        title: "API Key Required",
-        description: "Please enter a valid Gemini API key",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    saveGeminiApiKey(apiKey);
-    const isValid = await checkGeminiApiKey();
-    
-    if (isValid) {
-      setHasApiKey(true);
-      setIsApiKeyDialogOpen(false);
-      toast({
-        title: "Success",
-        description: "Gemini API key saved successfully!",
-      });
-    } else {
-      toast({
-        title: "Invalid API Key",
-        description: "The provided API key is invalid. Please check and try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const clearSearch = () => {
-    setQuery('');
-    setSearchResults([]);
-  };
-
-  const handleNoteClick = (note: Note) => {
-    // Navigate to the selected note
-    window.location.href = `/?noteId=${note.id}`;
-  };
-
   return (
-    <div className="w-full mb-6 px-4 py-4">
+    <div className="w-full mb-6 px-4 py-4" ref={searchContainerRef}>
       <div className="relative">
         <div className="relative flex items-center">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -137,102 +67,30 @@ const SearchBar: React.FC = () => {
           )}
         </div>
         
-        {!hasApiKey && (
-          <Button 
-            variant="outline" 
-            className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2"
-            onClick={() => setIsApiKeyDialogOpen(true)}
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>Set API Key</span>
-          </Button>
-        )}
+        <Button 
+          variant={isAIEnabled ? "default" : "outline"}
+          size="sm"
+          className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2"
+          onClick={toggleAISearch}
+        >
+          <Sparkles className="h-4 w-4" />
+          <span className="hidden sm:inline">{isAIEnabled ? "AI Enabled" : "Enable AI"}</span>
+        </Button>
       </div>
 
       <AnimatePresence>
-        {isSearching && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="py-4 text-center text-muted-foreground"
-          >
-            Searching with AI...
-          </motion.div>
-        )}
-
-        {!isSearching && searchResults.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="mt-2"
-          >
-            <Card className="p-4 shadow-sm overflow-hidden">
-              <h3 className="text-sm font-medium mb-2">Search Results ({searchResults.length})</h3>
-              <ul className="space-y-2">
-                {searchResults.map((note) => (
-                  <motion.li
-                    key={note.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="p-2 hover:bg-secondary rounded cursor-pointer"
-                    onClick={() => handleNoteClick(note)}
-                  >
-                    <h4 className="font-medium">{note.title}</h4>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {note.content.substring(0, 100)}
-                      {note.content.length > 100 ? '...' : ''}
-                    </p>
-                  </motion.li>
-                ))}
-              </ul>
-            </Card>
-          </motion.div>
-        )}
-
-        {!isSearching && query && searchResults.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="py-4 text-center text-muted-foreground"
-          >
-            No results found
-          </motion.div>
-        )}
+        <SearchResults 
+          results={searchResults} 
+          isSearching={isSearching} 
+          query={query} 
+        />
       </AnimatePresence>
 
-      <Dialog open={isApiKeyDialogOpen} onOpenChange={setIsApiKeyDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Set Gemini API Key</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm mb-4">
-              Please enter your Google Gemini API key to enable AI search functionality. 
-              You can get an API key from the Google AI Studio.
-            </p>
-            <Input
-              placeholder="Enter your Gemini API key"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="mb-2"
-              type="password"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsApiKeyDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveApiKey}>
-              Save API Key
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ApiKeyDialog 
+        open={isApiKeyDialogOpen} 
+        onOpenChange={setIsApiKeyDialogOpen}
+        onApiKeyValidated={handleApiKeyValidated}
+      />
     </div>
   );
 };
