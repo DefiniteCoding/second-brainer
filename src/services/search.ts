@@ -29,7 +29,8 @@ const aiSearch = async (notes: Note[], query: string): Promise<Note[]> => {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+    // Update to use a supported model
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
     // Prepare notes data for the AI
     const notesData = notes.map(note => ({

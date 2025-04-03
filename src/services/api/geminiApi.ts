@@ -1,7 +1,9 @@
+
 import { GeminiConfig } from '@/types/ai.types';
 import { getApiKey } from '@/services/ai';
 
-const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+// Update to use a supported endpoint
+const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
 
 export const callGeminiApi = async (prompt: string, config: Partial<GeminiConfig> = {}): Promise<any> => {
   const apiKey = await getApiKey();

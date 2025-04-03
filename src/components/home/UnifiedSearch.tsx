@@ -30,6 +30,7 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
   const searchInProgressRef = useRef(false);
   const lastSearchTermRef = useRef('');
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Check if API key exists on component mount
   useEffect(() => {
@@ -138,6 +139,20 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
     }
   };
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setSearchResults([]);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="w-full relative">
       <div className="relative">
@@ -194,10 +209,12 @@ export const UnifiedSearch: React.FC<UnifiedSearchProps> = ({ onSearchResults })
         
         {searchResults.length > 0 && !isSearching && (
           <motion.div
+            ref={dropdownRef}
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="absolute z-50 left-0 right-0 mt-2 bg-background shadow-lg rounded-lg border border-border overflow-hidden"
+            style={{ zIndex: 1000 }} // Ensure high z-index to appear above other elements
           >
             <div className="p-2 max-h-[60vh] overflow-y-auto">
               {searchResults.map((note) => (
