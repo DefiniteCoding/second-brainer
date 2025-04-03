@@ -1,80 +1,112 @@
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { Note } from '@/types/note';
 
-// Initialize the Google Generative AI with API key
-const getGenerativeAI = () => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('geminiApiKey');
-  if (!apiKey) {
-    throw new Error('Gemini API key not found. Please set up your API key first.');
-  }
+// Initialize the Google Generative AI with the API key
+const initializeGeminiApi = (apiKey: string) => {
   return new GoogleGenerativeAI(apiKey);
 };
 
-/**
- * Performs a natural language search over the notes using the Gemini AI model
- */
-export const searchWithGemini = async (query: string, notes: Note[]): Promise<Note[]> => {
-  try {
-    // Return early if no query or notes
-    if (!query.trim() || notes.length === 0) {
-      return [];
-    }
-
-    const genAI = getGenerativeAI();
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    // Create context for the AI by summarizing the notes
-    const notesContext = notes.map(note => ({
-      id: note.id,
-      title: note.title,
-      summary: note.content.substring(0, 100) + (note.content.length > 100 ? '...' : ''),
-      tags: note.tags.map(tag => tag.name).join(', ')
-    }));
-
-    // Create the prompt for the AI
-    const prompt = `
-    Search query: "${query}"
-    
-    I have the following notes in my collection. Please identify the notes most relevant to my search query. 
-    Return ONLY the IDs of the relevant notes separated by commas, nothing else.
-    
-    Notes:
-    ${JSON.stringify(notesContext, null, 2)}
-    `;
-
-    // Get response from Gemini
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text().trim();
-    
-    // Parse the response to get note IDs
-    const relevantIds = text.split(',')
-      .map(id => id.trim())
-      .filter(id => id.length > 0);
-    
-    // Filter notes based on the IDs returned by Gemini
-    return notes.filter(note => relevantIds.includes(note.id));
-  } catch (error) {
-    console.error('Error searching with Gemini:', error);
-    throw error;
-  }
-};
-
-// Function to check if API key exists and is valid
+// Function to check if we have a valid API key stored
 export const checkGeminiApiKey = async (): Promise<boolean> => {
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) {
+    return false;
+  }
+
   try {
-    const genAI = getGenerativeAI();
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    await model.generateContent("Test");
+    const genAI = initializeGeminiApi(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+    await model.generateContent("test");
     return true;
   } catch (error) {
-    console.error('Invalid Gemini API key:', error);
+    console.error("API key validation error:", error);
     return false;
   }
 };
 
-// Function to save API key to localStorage
+// Function to save the API key to localStorage
 export const saveGeminiApiKey = (apiKey: string): void => {
-  localStorage.setItem('geminiApiKey', apiKey);
+  localStorage.setItem('gemini_api_key', apiKey);
+};
+
+// Function to get the stored API key
+export const getGeminiApiKey = (): string | null => {
+  return localStorage.getItem('gemini_api_key');
+};
+
+// Function to search notes using Gemini AI
+export const searchWithGemini = async (query: string, notes: Note[]): Promise<Note[]> => {
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) {
+    throw new Error('API key not found. Please set your Gemini API key first.');
+  }
+
+  try {
+    const genAI = initializeGeminiApi(apiKey);
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.0-pro",
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+      ],
+    });
+
+    // Prepare notes content for semantic search
+    const notesContent = notes.map(note => ({
+      id: note.id,
+      title: note.title,
+      content: note.content,
+      snippet: note.content.substring(0, 100) // Short preview
+    }));
+
+    // Create a prompt that includes the user query and all notes data
+    const prompt = `
+    I want you to act as a semantic search engine for the following notes:
+    ${JSON.stringify(notesContent)}
+    
+    For the query: "${query}"
+    
+    Find the most relevant notes and return ONLY a JSON array of note IDs, sorted by relevance.
+    Do not include any explanation or other text, just return a valid JSON array of strings.
+    Example response format: ["id1", "id2", "id3"]
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+
+    // Extract the JSON array from the response
+    const jsonMatch = text.match(/\[.*?\]/s);
+    if (!jsonMatch) {
+      throw new Error('Invalid response format from AI model');
+    }
+
+    const relevantNoteIds = JSON.parse(jsonMatch[0]) as string[];
+    
+    // Filter and sort notes based on the returned IDs
+    const matchedNotes = notes.filter(note => relevantNoteIds.includes(note.id));
+    const sortedNotes = relevantNoteIds
+      .map(id => matchedNotes.find(note => note.id === id))
+      .filter((note): note is Note => !!note);
+
+    return sortedNotes;
+  } catch (error) {
+    console.error('Error searching with Gemini:', error);
+    throw new Error('Failed to search with Gemini API');
+  }
 };

@@ -16,9 +16,7 @@ import { useNotes } from '@/contexts/NotesContext';
 import { useFileSystem } from '@/hooks/useFileSystem';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { Note } from '@/types/note';
 import { mergeNotes } from './contexts/notes/notesUtils';
-import SearchBar from './components/SearchBar';
 
 const queryClient = new QueryClient();
 
@@ -75,9 +73,6 @@ const AppContent = () => {
 
   return (
     <AppLayout>
-      <div className="container max-w-screen-2xl px-4 pt-4">
-        <SearchBar />
-      </div>
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/graph" element={<KnowledgeGraph />} />
