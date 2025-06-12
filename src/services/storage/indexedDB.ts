@@ -22,7 +22,7 @@ const DB_VERSION = 1;
 
 class IndexedDBService {
   private db: IDBPDatabase | null = null;
-  private storeName = 'app-state';
+  private static readonly STORE_NAME = 'app-state';
 
   async init() {
     try {
@@ -36,8 +36,8 @@ class IndexedDBService {
           if (!db.objectStoreNames.contains('noteMetadata')) {
             db.createObjectStore('noteMetadata', { keyPath: 'id' });
           }
-          if (!db.objectStoreNames.contains(this.storeName)) {
-            db.createObjectStore(this.storeName, { keyPath: 'id' });
+          if (!db.objectStoreNames.contains(IndexedDBService.STORE_NAME)) {
+            db.createObjectStore(IndexedDBService.STORE_NAME, { keyPath: 'id' });
           }
         },
       });
@@ -91,8 +91,8 @@ class IndexedDBService {
   async saveState(state: AppState): Promise<void> {
     if (!this.db) return;
     try {
-      const tx = this.db.transaction([this.storeName], 'readwrite');
-      const store = tx.objectStore(this.storeName);
+      const tx = this.db.transaction([IndexedDBService.STORE_NAME], 'readwrite');
+      const store = tx.objectStore(IndexedDBService.STORE_NAME);
       await store.put({ id: 'app-state', ...state });
       await tx.done;
     } catch (error) {
@@ -103,7 +103,7 @@ class IndexedDBService {
   async loadState(): Promise<AppState | null> {
     if (!this.db) return null;
     try {
-      const state = await this.db.get(this.storeName, 'app-state');
+      const state = await this.db.get(IndexedDBService.STORE_NAME, 'app-state');
       return state || null;
     } catch (error) {
       console.error('Failed to load app state:', error);
@@ -114,8 +114,8 @@ class IndexedDBService {
   async clearState(): Promise<void> {
     if (!this.db) return;
     try {
-      const tx = this.db.transaction([this.storeName], 'readwrite');
-      const store = tx.objectStore(this.storeName);
+      const tx = this.db.transaction([IndexedDBService.STORE_NAME], 'readwrite');
+      const store = tx.objectStore(IndexedDBService.STORE_NAME);
       await store.delete('app-state');
       await tx.done;
     } catch (error) {
